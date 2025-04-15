@@ -68,7 +68,11 @@ func main() {
 					http.Error(w, "Failed to open body file", http.StatusInternalServerError)
 					return
 				}
-				defer file.Close()
+				defer func() {
+					if err := file.Close(); err != nil {
+						slog.Error(fmt.Sprintf("Failed to close file: %s", err))
+					}
+				}()
 			case endpoint.Response.Body != "":
 				responseBody = endpoint.Response.Body
 			default:
@@ -110,7 +114,11 @@ func main() {
 						http.Error(w, "Failed to open body file", http.StatusInternalServerError)
 						return
 					}
-					defer file.Close()
+					defer func() {
+						if err := file.Close(); err != nil {
+							slog.Error(fmt.Sprintf("Failed to close file: %s", err))
+						}
+					}()
 					body, err := io.ReadAll(file)
 					if err != nil {
 						slog.Error(fmt.Sprintf("Failed to read body file: %s", err))
@@ -341,7 +349,11 @@ func loadConfig(dir string) ([]Endpoint, error) {
 		if err != nil {
 			return err
 		}
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				slog.Error(fmt.Sprintf("Failed to close file: %s", err))
+			}
+		}()
 		byteValue, _ := io.ReadAll(file)
 		var newEndpoints []Endpoint
 		err = json.Unmarshal(byteValue, &newEndpoints)
