@@ -29,5 +29,5 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}
+            ghcr.io/${{ github.repository_owner }}/gostubby:latest
+            ghcr.io/${{ github.repository_owner }}/gostubby:${{ github.event.release.tag_name }}
