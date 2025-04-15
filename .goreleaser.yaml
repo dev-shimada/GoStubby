@@ -46,6 +46,7 @@ changelog:
       - "^docs:"
       - "^test:"
       - "^fmt"
+      - "^actions:"
 
 release:
   footer: >-
