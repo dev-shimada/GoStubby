@@ -1,8 +1,9 @@
 # GoStubby
 [![Go Report Card](https://goreportcard.com/badge/github.com/dev-shimada/gostubby)](https://goreportcard.com/report/github.com/dev-shimada/gostubby)
 [![Coverage Status](https://coveralls.io/repos/github/dev-shimada/gostubby/badge.svg?branch=main)](https://coveralls.io/github/dev-shimada/gostubby?branch=main)
-[![CI](https://github.com/dev-shimada/gostubby/actions/workflows/ci.yaml/badge.svg)](https://github.com/dev-shimada/gostubby/actions/workflows/ci.yaml)
-[![build](https://github.com/dev-shimada/gostubby/actions/workflows/build.yaml/badge.svg)](https://github.com/dev-shimada/gostubby/actions/workflows/build.yaml)
+[![CI](https://github.com/dev-shimada/GoStubby/actions/workflows/CI.yaml/badge.svg)](https://github.com/dev-shimada/GoStubby/actions/workflows/CI.yaml)
+[![release](https://github.com/dev-shimada/GoStubby/actions/workflows/release.yaml/badge.svg)](https://github.com/dev-shimada/GoStubby/actions/workflows/release.yaml)
+[![Docker release](https://github.com/dev-shimada/GoStubby/actions/workflows/build-docker-image.yaml/badge.svg)](https://github.com/dev-shimada/GoStubby/actions/workflows/build-docker-image.yaml)
 [![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/dev-shimada/gostubby/blob/master/LICENSE)
 
 柔軟で強力なGoによるモックサーバーの実装です。高度なリクエストマッチング機能とテンプレート化されたレスポンスを使用してモックエンドポイントを定義することができます。

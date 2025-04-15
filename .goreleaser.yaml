@@ -45,7 +45,7 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
-      - "^fmt:"
+      - "^fmt"
 
 release:
   footer: >-
