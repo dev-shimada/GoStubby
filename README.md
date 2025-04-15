@@ -1,10 +1,9 @@
 # GoStubby
-[![Go Report Card](https://goreportcard.com/badge/github.com/dev-shimada/gostubby)](https://goreportcard.com/report/github.com/dev-shimada/gostubby)
-[![Coverage Status](https://coveralls.io/repos/github/dev-shimada/gostubby/badge.svg?branch=main)](https://coveralls.io/github/dev-shimada/gostubby?branch=main)
+[![Go Report Card](https://goreportcard.com/badge/github.com/dev-shimada/GoStubby)](https://goreportcard.com/report/github.com/dev-shimada/GoStubby)
+[![Coverage Status](https://coveralls.io/repos/github/dev-shimada/GoStubby/badge.svg?branch=main)](https://coveralls.io/github/dev-shimada/GoStubby?branch=main)
 [![CI](https://github.com/dev-shimada/GoStubby/actions/workflows/CI.yaml/badge.svg)](https://github.com/dev-shimada/GoStubby/actions/workflows/CI.yaml)
-[![release](https://github.com/dev-shimada/GoStubby/actions/workflows/release.yaml/badge.svg)](https://github.com/dev-shimada/GoStubby/actions/workflows/release.yaml)
-[![Docker release](https://github.com/dev-shimada/GoStubby/actions/workflows/build-docker-image.yaml/badge.svg)](https://github.com/dev-shimada/GoStubby/actions/workflows/build-docker-image.yaml)
-[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/dev-shimada/gostubby/blob/master/LICENSE)
+[![build](https://github.com/dev-shimada/GoStubby/actions/workflows/build-docker-image.yaml/badge.svg)](https://github.com/dev-shimada/GoStubby/actions/workflows/build-docker-image.yaml)
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/dev-shimada/GoStubby/blob/master/LICENSE)
 
 A flexible and powerful mock server implementation in Go that allows you to define mock endpoints with advanced request matching capabilities and templated responses.
 
