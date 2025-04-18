@@ -57,7 +57,7 @@
       "method": "GET",
       "queryParameters": {
         "param1": {
-          "equalTo": 123
+          "equalTo": "123%3F"
         }
       }
     },

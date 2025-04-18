@@ -1,5 +1,6 @@
 {
     "message": "This is a stub response", 
+    "description": "ƒeƒXƒg",
     "path1": "{{.Path.path1}}",
     "param1": {{.Query.param1}}
 }

@@ -81,8 +81,16 @@ func main() {
 				return
 			}
 
+			// pathMatcher
 			isMatchPath, pathMap := pathMatcher(endpoint, r.URL.RawPath, r.URL.Path)
-			isMatchQuery := queryMatcher(endpoint, r.URL.Query())
+			// queryMatcher
+			rqv, err := rawQueryValues(*r)
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to parse query parameters: %s", err))
+				http.Error(w, "Failed to parse query parameters", http.StatusInternalServerError)
+				return
+			}
+			isMatchQuery := queryMatcher(endpoint, rqv)
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				slog.Error(fmt.Sprintf("Failed to read request body: %s", err))
@@ -184,6 +192,21 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Info(fmt.Sprintf("HTTP server Shutdown: %v", err))
 	}
+}
+
+// rawQueryValues parses the raw query string from the request URL and returns a url.Values map.
+// It splits the query string by '&' and then splits each key-value pair by '='.
+// If the query string is malformed, it returns an error.
+func rawQueryValues(r http.Request) (url.Values, error) {
+	ret := url.Values{}
+	for v := range strings.SplitSeq(r.URL.RawQuery, "&") {
+		kv := strings.Split(v, "=")
+		if len(kv) != 2 {
+			return nil, fmt.Errorf("invalid query parameter: %s", v)
+		}
+		ret.Add(kv[0], kv[1])
+	}
+	return ret, nil
 }
 
 func pathMatcher(endpoint Endpoint, gotRawPath, gotPath string) (bool, map[string]string) {
