@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -52,6 +53,9 @@ type Endpoint struct {
 }
 
 func main() {
+	port := flag.Int("p", 8080, "Port number to listen on")
+	flag.IntVar(port, "port", 8080, "Port number to listen on")
+	flag.Parse()
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -169,12 +173,13 @@ func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	// defer stop()
 
+	addr := fmt.Sprintf(":%d", *port)
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    addr,
 		Handler: mux,
 	}
 
-	slog.Info("Server is running at :8080 Press CTRL-C to exit.")
+	slog.Info(fmt.Sprintf("Server is running at %s Press CTRL-C to exit.", addr))
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			if err == http.ErrServerClosed {

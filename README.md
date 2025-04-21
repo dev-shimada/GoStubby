@@ -55,10 +55,17 @@ go get github.com/dev-shimada/gostubby
 2. Run the server:
 
 ```bash
+# Default port (8080)
 go run main.go
+
+# Custom port using short option
+go run main.go -p 3000
+
+# Custom port using long option
+go run main.go --port 3000
 ```
 
-The server will start on port 8080 by default.
+The server will start on port 8080 by default. You can specify a different port using either the `-p` or `--port` option.
 
 ## Configuration Format
 
