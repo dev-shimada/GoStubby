@@ -395,7 +395,7 @@ func Test_queryMatcher(t *testing.T) {
 
 func Test_loadConfig(t *testing.T) {
 	type args struct {
-		filePath string
+		path string
 	}
 	tests := []struct {
 		name    string
@@ -404,9 +404,9 @@ func Test_loadConfig(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "valid config",
+			name: "valid single file",
 			args: args{
-				filePath: "testdata/test_config.json",
+				path: "testdata/test_config.json",
 			},
 			want: []main.Endpoint{
 				{
@@ -456,10 +456,79 @@ func Test_loadConfig(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "valid directory",
+			args: args{
+				path: "testdata",
+			},
+			want: []main.Endpoint{
+				{
+					Request: main.Request{
+						URLPathTemplate: "/example/{path1}/{path2}/{path3}/{path4}/{path5}",
+						Method:          "GET",
+						PathParameters: map[string]main.Matcher{
+							"path1": {
+								EqualTo: "v1",
+							},
+							"path2": {
+								Matches: "^[a-zA-Z0-9]{3}$",
+							},
+							"path3": {
+								DoesNotMatch: "[a-zA-Z]{3}",
+							},
+							"path4": {
+								Contains: "a",
+							},
+							"path5": {
+								DoesNotContain: "b",
+							},
+						},
+						QueryParameters: map[string]main.Matcher{
+							"param1": {
+								EqualTo: "value1",
+							},
+							"param2": {
+								Matches: "[a-zA-Z0-9]{3}",
+							},
+							"param3": {
+								DoesNotMatch: "[a-zA-Z]{3}",
+							},
+							"param4": {
+								Contains: "a",
+							},
+							"param5": {
+								DoesNotContain: "b",
+							},
+						},
+					},
+					Response: main.Response{
+						Status: 200,
+						Body:   `{"message": "This is a stub response", "param1"="{{.Query.param1}}", "param2"="{{.Query.param2}}", "param3"="{{.Query.param3}}", "param4"="{{.Query.param4}}", "param5"="{{.Query.param5}}"}` + "\n",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid file path",
+			args: args{
+				path: "testdata/nonexistent.json",
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "non-json file",
+			args: args{
+				path: "testdata/test.txt",
+			},
+			want:    nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := main.ExportLoadConfig(tt.args.filePath)
+			got, err := main.ExportLoadConfig(tt.args.path)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("loadConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -55,7 +55,7 @@ go get github.com/dev-shimada/gostubby
 2. Run the server:
 
 ```bash
-# Default port (8080)
+# Default port (8080) and config directory
 go run main.go
 
 # Custom port using short option
@@ -63,9 +63,19 @@ go run main.go -p 3000
 
 # Custom port using long option
 go run main.go --port 3000
+
+# Custom config path using short option
+go run main.go -c ./path/to/config.json
+
+# Custom config path using long option
+go run main.go --config ./path/to/configs
 ```
 
-The server will start on port 8080 by default. You can specify a different port using either the `-p` or `--port` option.
+The server supports the following command-line options:
+- Port: `-p` or `--port` (default: 8080)
+- Configuration: `-c` or `--config` (default: "./configs")
+
+You can specify either a single JSON configuration file or a directory containing multiple JSON configuration files. When a directory is specified, all JSON files in that directory will be loaded.
 
 ## Configuration Format
 

@@ -55,11 +55,13 @@ type Endpoint struct {
 func main() {
 	port := flag.Int("p", 8080, "Port number to listen on")
 	flag.IntVar(port, "port", 8080, "Port number to listen on")
+	configPath := flag.String("config", "configs", "Path to configuration directory or file")
+	flag.StringVar(configPath, "c", "configs", "Path to configuration directory or file")
 	flag.Parse()
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		endpoints, err := loadConfig("configs")
+		endpoints, err := loadConfig(*configPath)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to load configuration: %v", err))
 		}
@@ -364,9 +366,40 @@ func bodyMatcher(endpoint Endpoint, body string) bool {
 	return true
 }
 
-func loadConfig(dir string) ([]Endpoint, error) {
+func loadConfig(path string) ([]Endpoint, error) {
 	var endpoints []Endpoint
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+
+	// Check if path exists
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to access config path: %v", err)
+	}
+
+	// If path is a file, load it directly
+	if !info.IsDir() {
+		if filepath.Ext(path) != ".json" {
+			return nil, fmt.Errorf("config file must be a JSON file")
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			if err := file.Close(); err != nil {
+				slog.Error(fmt.Sprintf("Failed to close file: %s", err))
+			}
+		}()
+		byteValue, _ := io.ReadAll(file)
+		var newEndpoints []Endpoint
+		err = json.Unmarshal(byteValue, &newEndpoints)
+		if err != nil {
+			return nil, err
+		}
+		return newEndpoints, nil
+	}
+
+	// If path is a directory, walk through it
+	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
