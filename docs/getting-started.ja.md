@@ -4,11 +4,33 @@
 
 ## インストール
 
-Go のパッケージ管理を使用して GoStubby をインストールします：
+GoStubbyをインストールして使用するには、以下の2つの方法があります：
+
+### 1. Goパッケージのインストール
+
+Go のパッケージ管理を使用してインストール：
 
 ```bash
-go get github.com/dev-shimada/gostubby
+go install github.com/dev-shimada/gostubby@latest
 ```
+
+### 2. Dockerイメージ
+
+公式Dockerイメージを使用：
+
+```bash
+# イメージの取得
+docker pull ghcr.io/dev-shimada/gostubby:latest
+
+# コンテナの実行
+docker run -p 8080:8080 -v $(pwd)/configs:/app/configs ghcr.io/dev-shimada/gostubby:latest
+```
+
+Dockerを使用する利点：
+- Goのインストールが不要
+- プラットフォーム間で一貫した環境
+- コンテナ化環境での容易なデプロイ
+- 最新イメージの取得による自動アップデート
 
 ## クイックスタート チュートリアル
 
