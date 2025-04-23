@@ -72,10 +72,44 @@ go run main.go --config ./path/to/configs
 ```
 
 サーバーは以下のコマンドラインオプションをサポートしています：
+
+HTTP設定：
 - ポート番号: `-p` または `--port`（デフォルト: 8080）
+
+HTTPS設定：
+- HTTPSポート番号: `-s` または `--https-port`（デフォルト: 8443）
+- SSL/TLS証明書: `-t` または `--cert`（SSL/TLS証明書ファイルへのパス）
+- SSL/TLS秘密鍵: `-k` または `--key`（SSL/TLS秘密鍵ファイルへのパス）
+
+一般設定：
 - 設定ファイル: `-c` または `--config`（デフォルト: "./configs"）
 
 設定ファイルは、単一のJSONファイルまたは複数のJSONファイルを含むディレクトリのいずれかを指定できます。ディレクトリを指定した場合、そのディレクトリ内のすべてのJSONファイルが読み込まれます。
+
+### SSL/TLSサポート
+
+SSL/TLS証明書を提供することで、サーバーをHTTPSモードで実行できます。HTTPとHTTPSを同時に有効にして実行することも可能です。
+
+HTTPSを有効にするには：
+1. SSL/TLS証明書と秘密鍵ファイルを用意
+2. 証明書と鍵ファイルのパスを指定してサーバーを起動：
+
+```bash
+# HTTPとHTTPSの両方で実行
+go run main.go --cert ./certs/server.crt --key ./certs/server.key
+
+# HTTPとHTTPSのポートをカスタマイズ
+go run main.go --port 8080 --https-port 8443 --cert ./certs/server.crt --key ./certs/server.key
+```
+
+開発やテスト用に自己署名証明書を生成する場合：
+```bash
+# 秘密鍵と自己署名証明書の生成
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout ./certs/server.key -out ./certs/server.crt
+```
+
+注意：セキュリティのため、TLS 1.2以上のバージョンを強制しています。
 
 ## 設定フォーマット
 

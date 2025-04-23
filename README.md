@@ -72,10 +72,44 @@ go run main.go --config ./path/to/configs
 ```
 
 The server supports the following command-line options:
+
+HTTP Configuration:
 - Port: `-p` or `--port` (default: 8080)
+
+HTTPS Configuration:
+- HTTPS Port: `-s` or `--https-port` (default: 8443)
+- Certificate: `-t` or `--cert` (path to SSL/TLS certificate file)
+- Private Key: `-k` or `--key` (path to SSL/TLS private key file)
+
+General Configuration:
 - Configuration: `-c` or `--config` (default: "./configs")
 
 You can specify either a single JSON configuration file or a directory containing multiple JSON configuration files. When a directory is specified, all JSON files in that directory will be loaded.
+
+### SSL/TLS Support
+
+The server supports running in HTTPS mode when SSL/TLS certificates are provided. You can run the server with both HTTP and HTTPS enabled simultaneously.
+
+To enable HTTPS:
+1. Obtain SSL/TLS certificate and private key files
+2. Run the server with the certificate and key file paths:
+
+```bash
+# Run with both HTTP and HTTPS
+go run main.go --cert ./certs/server.crt --key ./certs/server.key
+
+# Custom ports for both HTTP and HTTPS
+go run main.go --port 8080 --https-port 8443 --cert ./certs/server.crt --key ./certs/server.key
+```
+
+For development and testing, you can generate a self-signed certificate:
+```bash
+# Generate private key and self-signed certificate
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout ./certs/server.key -out ./certs/server.crt
+```
+
+Note: The server enforces TLS 1.2 or higher for security.
 
 ## Configuration Format
 

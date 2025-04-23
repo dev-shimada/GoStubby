@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -53,11 +54,23 @@ type Endpoint struct {
 }
 
 func main() {
-	port := flag.Int("p", 8080, "Port number to listen on")
-	flag.IntVar(port, "port", 8080, "Port number to listen on")
+	// HTTP configuration
+	port := flag.Int("p", 8080, "HTTP port number to listen on")
+	flag.IntVar(port, "port", 8080, "HTTP port number to listen on")
+
+	// HTTPS configuration
+	httpsPort := flag.Int("s", 8443, "HTTPS port number to listen on")
+	flag.IntVar(httpsPort, "https-port", 8443, "HTTPS port number to listen on")
+	certFile := flag.String("t", "", "Path to SSL/TLS certificate file")
+	flag.StringVar(certFile, "cert", "", "Path to SSL/TLS certificate file")
+	keyFile := flag.String("k", "", "Path to SSL/TLS private key file")
+	flag.StringVar(keyFile, "key", "", "Path to SSL/TLS private key file")
+
+	// General configuration
 	configPath := flag.String("config", "configs", "Path to configuration directory or file")
 	flag.StringVar(configPath, "c", "configs", "Path to configuration directory or file")
 	flag.Parse()
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -175,29 +188,68 @@ func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	// defer stop()
 
-	addr := fmt.Sprintf(":%d", *port)
-	srv := &http.Server{
-		Addr:    addr,
+	// Create HTTP server
+	httpAddr := fmt.Sprintf(":%d", *port)
+	httpSrv := &http.Server{
+		Addr:    httpAddr,
 		Handler: mux,
 	}
 
-	slog.Info(fmt.Sprintf("Server is running at %s Press CTRL-C to exit.", addr))
+	// Create HTTPS server if certificate and key files are provided
+	var httpsSrv *http.Server
+	if *certFile != "" && *keyFile != "" {
+		httpsAddr := fmt.Sprintf(":%d", *httpsPort)
+		httpsSrv = &http.Server{
+			Addr:    httpsAddr,
+			Handler: mux,
+			TLSConfig: &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			},
+		}
+	}
+
+	// Start HTTP server
+	slog.Info(fmt.Sprintf("HTTP server is running at http://localhost%s", httpAddr))
 	go func() {
-		if err := srv.ListenAndServe(); err != nil {
+		if err := httpSrv.ListenAndServe(); err != nil {
 			if err == http.ErrServerClosed {
-				slog.Info("Server closed.")
+				slog.Info("HTTP server closed")
 			} else {
-				slog.Error(fmt.Sprintf("ListenAndServe: %v", err))
+				slog.Error(fmt.Sprintf("HTTP ListenAndServe: %v", err))
 			}
 		}
 	}()
 
+	// Start HTTPS server if configured
+	if httpsSrv != nil {
+		slog.Info(fmt.Sprintf("HTTPS server is running at https://localhost%s", httpsSrv.Addr))
+		go func() {
+			if err := httpsSrv.ListenAndServeTLS(*certFile, *keyFile); err != nil {
+				if err == http.ErrServerClosed {
+					slog.Info("HTTPS server closed")
+				} else {
+					slog.Error(fmt.Sprintf("HTTPS ListenAndServeTLS: %v", err))
+				}
+			}
+		}()
+	}
+
 	<-ctx.Done()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Graceful shutdown
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		slog.Info(fmt.Sprintf("HTTP server Shutdown: %v", err))
+
+	// Shutdown HTTP server
+	if err := httpSrv.Shutdown(shutdownCtx); err != nil {
+		slog.Error(fmt.Sprintf("HTTP server Shutdown: %v", err))
+	}
+
+	// Shutdown HTTPS server if it was started
+	if httpsSrv != nil {
+		if err := httpsSrv.Shutdown(shutdownCtx); err != nil {
+			slog.Error(fmt.Sprintf("HTTPS server Shutdown: %v", err))
+		}
 	}
 }
 
