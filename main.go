@@ -49,147 +49,47 @@ type Response struct {
 	Transformaers []string          `json:"transformers"`
 }
 type Endpoint struct {
-	Request  Request  `json:"request"`
-	Response Response `json:"response"`
+	Description string   `json:"description"`
+	Request     Request  `json:"request"`
+	Response    Response `json:"response"`
 }
+
+var (
+	// Global variables for configuration
+	port       int
+	httpsPort  int
+	certFile   string
+	keyFile    string
+	configPath string
+)
 
 func main() {
 	// HTTP configuration
-	port := flag.Int("p", 8080, "HTTP port number to listen on")
-	flag.IntVar(port, "port", 8080, "HTTP port number to listen on")
+	port = *flag.Int("p", 8080, "HTTP port number to listen on")
+	flag.IntVar(&port, "port", 8080, "HTTP port number to listen on")
 
 	// HTTPS configuration
-	httpsPort := flag.Int("s", 8443, "HTTPS port number to listen on")
-	flag.IntVar(httpsPort, "https-port", 8443, "HTTPS port number to listen on")
-	certFile := flag.String("t", "", "Path to SSL/TLS certificate file")
-	flag.StringVar(certFile, "cert", "", "Path to SSL/TLS certificate file")
-	keyFile := flag.String("k", "", "Path to SSL/TLS private key file")
-	flag.StringVar(keyFile, "key", "", "Path to SSL/TLS private key file")
+	httpsPort = *flag.Int("s", 8443, "HTTPS port number to listen on")
+	flag.IntVar(&httpsPort, "https-port", 8443, "HTTPS port number to listen on")
+	certFile = *flag.String("t", "", "Path to SSL/TLS certificate file")
+	flag.StringVar(&certFile, "cert", "", "Path to SSL/TLS certificate file")
+	keyFile = *flag.String("k", "", "Path to SSL/TLS private key file")
+	flag.StringVar(&keyFile, "key", "", "Path to SSL/TLS private key file")
 
 	// General configuration
-	configPath := flag.String("config", "configs", "Path to configuration directory or file")
-	flag.StringVar(configPath, "c", "configs", "Path to configuration directory or file")
+	configPath = *flag.String("config", "configs", "Path to configuration directory or file")
+	flag.StringVar(&configPath, "c", "configs", "Path to configuration directory or file")
 	flag.Parse()
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		endpoints, err := loadConfig(*configPath)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to load configuration: %v", err))
-		}
-		for _, endpoint := range endpoints {
-			var responseBody string
-			switch {
-			case endpoint.Response.BodyFileName != "":
-				file, err := os.Open(endpoint.Response.BodyFileName)
-				if err != nil {
-					http.Error(w, "Failed to open body file", http.StatusInternalServerError)
-					return
-				}
-				defer func() {
-					if err := file.Close(); err != nil {
-						slog.Error(fmt.Sprintf("Failed to close file: %s", err))
-					}
-				}()
-			case endpoint.Response.Body != "":
-				responseBody = endpoint.Response.Body
-			default:
-				slog.Error("Response body is empty")
-				http.Error(w, "Response body is empty", http.StatusInternalServerError)
-				return
-			}
-
-			// pathMatcher
-			isMatchPath, pathMap := pathMatcher(endpoint, r.URL.RawPath, r.URL.Path)
-			// queryMatcher
-			rqv, err := rawQueryValues(*r)
-			if err != nil {
-				slog.Error(fmt.Sprintf("Failed to parse query parameters: %s", err))
-				http.Error(w, "Failed to parse query parameters", http.StatusInternalServerError)
-				return
-			}
-			isMatchQuery := queryMatcher(endpoint, rqv)
-			body, err := io.ReadAll(r.Body)
-			if err != nil {
-				slog.Error(fmt.Sprintf("Failed to read request body: %s", err))
-				http.Error(w, "Failed to read request body", http.StatusInternalServerError)
-				return
-			}
-			isMatchBody := bodyMatcher(endpoint, string(body))
-			if r.Method == endpoint.Request.Method && isMatchPath && isMatchQuery && isMatchBody {
-				w.WriteHeader(endpoint.Response.Status)
-
-				type gotParams struct {
-					Path  map[string]string
-					Query map[string]string
-				}
-				q := make(map[string]string)
-				for k, v := range r.URL.Query() {
-					q[k] = v[0]
-				}
-				gp := gotParams{
-					Query: q,
-					Path:  pathMap,
-				}
-
-				// bodyFileNameが指定されている場合は、bodyは無視される
-				if endpoint.Response.BodyFileName != "" {
-					file, err := os.Open(endpoint.Response.BodyFileName)
-					if err != nil {
-						slog.Error(fmt.Sprintf("Failed to open body file: %s", err))
-						http.Error(w, "Failed to open body file", http.StatusInternalServerError)
-						return
-					}
-					defer func() {
-						if err := file.Close(); err != nil {
-							slog.Error(fmt.Sprintf("Failed to close file: %s", err))
-						}
-					}()
-					body, err := io.ReadAll(file)
-					if err != nil {
-						slog.Error(fmt.Sprintf("Failed to read body file: %s", err))
-						http.Error(w, "Failed to read body file", http.StatusInternalServerError)
-						return
-					}
-					responseBody = string(body)
-					tpl, err := template.New("response").Parse(responseBody)
-					if err != nil {
-						slog.Error(fmt.Sprintf("Failed to parse response template: %s", err))
-						http.Error(w, "Failed to parse response template", http.StatusInternalServerError)
-						return
-					}
-					if err := tpl.Execute(w, gp); err != nil {
-						slog.Error(fmt.Sprintf("Failed to execute response template: %s", err))
-						http.Error(w, "Failed to execute response template", http.StatusInternalServerError)
-						return
-					}
-					return
-				}
-
-				// bodyFileNameが指定されていない場合は、bodyを使用する
-				tpl, err := template.New("response").Parse(responseBody)
-				if err != nil {
-					slog.Error(fmt.Sprintf("Failed to parse response template: %s", err))
-					http.Error(w, "Failed to parse response template", http.StatusInternalServerError)
-					return
-				}
-				if err := tpl.Execute(w, gp); err != nil {
-					slog.Error(fmt.Sprintf("Failed to execute response template: %s", err))
-					http.Error(w, "Failed to execute response template", http.StatusInternalServerError)
-					return
-				}
-				return
-			}
-		}
-		http.NotFound(w, r)
-	})
+	mux.HandleFunc("/", handle)
 
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	// defer stop()
 
 	// Create HTTP server
-	httpAddr := fmt.Sprintf(":%d", *port)
+	httpAddr := fmt.Sprintf(":%d", port)
 	httpSrv := &http.Server{
 		Addr:    httpAddr,
 		Handler: mux,
@@ -197,8 +97,8 @@ func main() {
 
 	// Create HTTPS server if certificate and key files are provided
 	var httpsSrv *http.Server
-	if *certFile != "" && *keyFile != "" {
-		httpsAddr := fmt.Sprintf(":%d", *httpsPort)
+	if certFile != "" && keyFile != "" {
+		httpsAddr := fmt.Sprintf(":%d", httpsPort)
 		httpsSrv = &http.Server{
 			Addr:    httpsAddr,
 			Handler: mux,
@@ -224,7 +124,7 @@ func main() {
 	if httpsSrv != nil {
 		slog.Info(fmt.Sprintf("HTTPS server is running at https://localhost%s", httpsSrv.Addr))
 		go func() {
-			if err := httpsSrv.ListenAndServeTLS(*certFile, *keyFile); err != nil {
+			if err := httpsSrv.ListenAndServeTLS(certFile, keyFile); err != nil {
 				if err == http.ErrServerClosed {
 					slog.Info("HTTPS server closed")
 				} else {
@@ -251,6 +151,119 @@ func main() {
 			slog.Error(fmt.Sprintf("HTTPS server Shutdown: %v", err))
 		}
 	}
+}
+
+func handle(w http.ResponseWriter, r *http.Request) {
+	endpoints, err := loadConfig(configPath)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to load configuration: %v", err))
+	}
+	for _, endpoint := range endpoints {
+		var responseBody string
+		switch {
+		case endpoint.Response.BodyFileName != "":
+			file, err := os.Open(endpoint.Response.BodyFileName)
+			if err != nil {
+				http.Error(w, "Failed to open body file", http.StatusInternalServerError)
+				return
+			}
+			defer func() {
+				if err := file.Close(); err != nil {
+					slog.Error(fmt.Sprintf("Failed to close file: %s", err))
+				}
+			}()
+		case endpoint.Response.Body != "":
+			responseBody = endpoint.Response.Body
+		default:
+			slog.Error("Response body is empty")
+			http.Error(w, "Response body is empty", http.StatusInternalServerError)
+			return
+		}
+
+		// pathMatcher
+		isMatchPath, pathMap := pathMatcher(endpoint, r.URL.RawPath, r.URL.Path)
+		// queryMatcher
+		rqv, err := rawQueryValues(*r)
+		if err != nil {
+			slog.Error(fmt.Sprintf("Failed to parse query parameters: %s", err))
+			http.Error(w, "Failed to parse query parameters", http.StatusInternalServerError)
+			return
+		}
+		isMatchQuery := queryMatcher(endpoint, rqv)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			slog.Error(fmt.Sprintf("Failed to read request body: %s", err))
+			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+			return
+		}
+		isMatchBody := bodyMatcher(endpoint, string(body))
+		if r.Method == endpoint.Request.Method && isMatchPath && isMatchQuery && isMatchBody {
+			slog.Info(fmt.Sprintf("Matched endpoint: %s", endpoint.Description))
+			w.WriteHeader(endpoint.Response.Status)
+
+			type gotParams struct {
+				Path  map[string]string
+				Query map[string]string
+			}
+			q := make(map[string]string)
+			for k, v := range r.URL.Query() {
+				q[k] = v[0]
+			}
+			gp := gotParams{
+				Query: q,
+				Path:  pathMap,
+			}
+
+			// bodyFileNameが指定されている場合は、bodyは無視される
+			if endpoint.Response.BodyFileName != "" {
+				file, err := os.Open(endpoint.Response.BodyFileName)
+				if err != nil {
+					slog.Error(fmt.Sprintf("Failed to open body file: %s", err))
+					http.Error(w, "Failed to open body file", http.StatusInternalServerError)
+					return
+				}
+				defer func() {
+					if err := file.Close(); err != nil {
+						slog.Error(fmt.Sprintf("Failed to close file: %s", err))
+					}
+				}()
+				body, err := io.ReadAll(file)
+				if err != nil {
+					slog.Error(fmt.Sprintf("Failed to read body file: %s", err))
+					http.Error(w, "Failed to read body file", http.StatusInternalServerError)
+					return
+				}
+				responseBody = string(body)
+				tpl, err := template.New("response").Parse(responseBody)
+				if err != nil {
+					slog.Error(fmt.Sprintf("Failed to parse response template: %s", err))
+					http.Error(w, "Failed to parse response template", http.StatusInternalServerError)
+					return
+				}
+				if err := tpl.Execute(w, gp); err != nil {
+					slog.Error(fmt.Sprintf("Failed to execute response template: %s", err))
+					http.Error(w, "Failed to execute response template", http.StatusInternalServerError)
+					return
+				}
+				return
+			}
+
+			// bodyFileNameが指定されていない場合は、bodyを使用する
+			tpl, err := template.New("response").Parse(responseBody)
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to parse response template: %s", err))
+				http.Error(w, "Failed to parse response template", http.StatusInternalServerError)
+				return
+			}
+			if err := tpl.Execute(w, gp); err != nil {
+				slog.Error(fmt.Sprintf("Failed to execute response template: %s", err))
+				http.Error(w, "Failed to execute response template", http.StatusInternalServerError)
+				return
+			}
+			return
+		}
+	}
+	http.NotFound(w, r)
 }
 
 // rawQueryValues parses the raw query string from the request URL and returns a url.Values map.
