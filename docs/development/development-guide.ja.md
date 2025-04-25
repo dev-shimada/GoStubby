@@ -29,6 +29,20 @@ go mod download
 go build
 ```
 
+## Dockerでの実行
+
+Dockerを使用してGoStubbyを実行できます：
+
+```bash
+docker run --rm --name gostubby -p 8080:8080 -v $(pwd)/configs:/app/configs -v $(pwd)/body:/app/body gostubby
+```
+
+このコマンドの説明：
+- `gostubby`イメージを使用
+- コンテナのポート8080をホストにマッピング
+- ローカルの`configs`と`body`ディレクトリをコンテナにマウント
+- 停止時にコンテナを削除（--rmフラグ）
+
 ## プロジェクト構造
 
 ```
