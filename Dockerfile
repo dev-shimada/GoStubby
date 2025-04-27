@@ -16,3 +16,4 @@ FROM --platform=$BUILDPLATFORM gcr.io/distroless/base-debian12:latest
 WORKDIR /app
 COPY --chmod=100 --from=build /workspace/bin/gostubby /app/gostubby
 ENTRYPOINT [ "/app/gostubby" ]
+CMD [ "--host", "0.0.0.0" ]

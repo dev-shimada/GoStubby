@@ -56,6 +56,7 @@ type Endpoint struct {
 
 var (
 	// Global variables for configuration
+	host       string
 	port       int
 	httpsPort  int
 	certFile   string
@@ -64,6 +65,10 @@ var (
 )
 
 func main() {
+	// Host configuration
+	host = *flag.String("h", "localhost", "Host address to bind to (use 0.0.0.0 for Docker)")
+	flag.StringVar(&host, "host", "localhost", "Host address to bind to (use 0.0.0.0 for Docker)")
+
 	// HTTP configuration
 	port = *flag.Int("p", 8080, "HTTP port number to listen on")
 	flag.IntVar(&port, "port", 8080, "HTTP port number to listen on")
@@ -89,7 +94,7 @@ func main() {
 	// defer stop()
 
 	// Create HTTP server
-	httpAddr := fmt.Sprintf(":%d", port)
+	httpAddr := fmt.Sprintf("%s:%d", host, port)
 	httpSrv := &http.Server{
 		Addr:    httpAddr,
 		Handler: mux,
@@ -98,7 +103,7 @@ func main() {
 	// Create HTTPS server if certificate and key files are provided
 	var httpsSrv *http.Server
 	if certFile != "" && keyFile != "" {
-		httpsAddr := fmt.Sprintf(":%d", httpsPort)
+		httpsAddr := fmt.Sprintf("%s:%d", host, httpsPort)
 		httpsSrv = &http.Server{
 			Addr:    httpsAddr,
 			Handler: mux,
@@ -109,7 +114,7 @@ func main() {
 	}
 
 	// Start HTTP server
-	slog.Info(fmt.Sprintf("HTTP server is running at http://localhost%s", httpAddr))
+	slog.Info(fmt.Sprintf("HTTP server is running at http://%s:%d", host, port))
 	go func() {
 		if err := httpSrv.ListenAndServe(); err != nil {
 			if err == http.ErrServerClosed {
@@ -122,7 +127,7 @@ func main() {
 
 	// Start HTTPS server if configured
 	if httpsSrv != nil {
-		slog.Info(fmt.Sprintf("HTTPS server is running at https://localhost%s", httpsSrv.Addr))
+		slog.Info(fmt.Sprintf("HTTPS server is running at https://%s:%d", host, httpsPort))
 		go func() {
 			if err := httpsSrv.ListenAndServeTLS(certFile, keyFile); err != nil {
 				if err == http.ErrServerClosed {
