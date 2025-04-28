@@ -6,7 +6,10 @@ ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /workspace
-COPY . /workspace
+COPY main.go /workspace
+COPY go.mod /workspace
+COPY go.sum /workspace
+COPY LICENSE /workspace
 
 RUN  <<EOF
 CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o bin/gostubby main.go

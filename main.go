@@ -49,6 +49,7 @@ type Response struct {
 	Transformaers []string          `json:"transformers"`
 }
 type Endpoint struct {
+	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	Request     Request  `json:"request"`
 	Response    Response `json:"response"`
@@ -203,7 +204,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		}
 		isMatchBody := bodyMatcher(endpoint, string(body))
 		if r.Method == endpoint.Request.Method && isMatchPath && isMatchQuery && isMatchBody {
-			slog.Info(fmt.Sprintf("Matched endpoint: %s", endpoint.Description))
+			slog.Info(fmt.Sprintf("Matched endpoint: %s", endpoint.Name))
 			w.WriteHeader(endpoint.Response.Status)
 
 			type gotParams struct {
