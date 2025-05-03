@@ -1,7 +1,10 @@
 package main_test
 
 import (
+	"fmt"
 	"net/url"
+	"regexp"
+	"strings"
 	"testing"
 
 	main "github.com/dev-shimada/gostubby"
@@ -538,4 +541,98 @@ func Test_loadConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_debugPathMatcherDetailed(t *testing.T) {
+	// Load the configuration
+	endpoints, err := main.ExportLoadConfig("testdata/test_config.json")
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	if len(endpoints) == 0 {
+		t.Fatalf("No endpoints loaded from configuration")
+	}
+
+	endpoint := endpoints[0]
+	testPath := "/example/v1/123/000/axyz"
+
+	// Split the paths for comparison
+	pathTemplate := endpoint.Request.URLPathTemplate
+	t.Logf("Template: %s", pathTemplate)
+	t.Logf("Test path: %s", testPath)
+
+	templateUnits := strings.Split(strings.TrimRight(pathTemplate, "/"), "/")
+	testPathUnits := strings.Split(strings.TrimRight(testPath, "/"), "/")
+
+	t.Logf("Template units (%d): %v", len(templateUnits), templateUnits)
+	t.Logf("Test path units (%d): %v", len(testPathUnits), testPathUnits)
+
+	// Check lengths match
+	if len(templateUnits) != len(testPathUnits) {
+		t.Logf("Length mismatch: template=%d, path=%d", len(templateUnits), len(testPathUnits))
+	} else {
+		t.Logf("Length match: %d units", len(templateUnits))
+	}
+
+	// Check path parameters
+	posMap := make(map[string]int)
+	for k := range endpoint.Request.PathParameters {
+		placeHolder := fmt.Sprintf("{%s}", k)
+		for i, unit := range templateUnits {
+			if unit == placeHolder {
+				posMap[k] = i
+				if i < len(testPathUnits) {
+					t.Logf("Parameter %s at position %d = %s", k, i, testPathUnits[i])
+				} else {
+					t.Logf("Parameter %s at position %d is out of range for test path", k, i)
+				}
+				break
+			}
+		}
+	}
+
+	t.Logf("Position map: %v", posMap)
+
+	// Check each parameter constraint - safely this time
+	for k, v := range endpoint.Request.PathParameters {
+		pos, ok := posMap[k]
+		if !ok {
+			t.Logf("Path parameter %s not found in template", k)
+			continue
+		}
+
+		if pos >= len(testPathUnits) {
+			t.Logf("Position %d for parameter %s is out of range for test path", pos, k)
+			continue
+		}
+
+		paramValue := testPathUnits[pos]
+		t.Logf("Checking parameter %s = %s", k, paramValue)
+
+		if v.EqualTo != nil {
+			isEqual := paramValue == fmt.Sprint(v.EqualTo)
+			t.Logf("  EqualTo %v: %v", v.EqualTo, isEqual)
+		}
+		if v.Matches != nil {
+			doesMatch := regexp.MustCompile(v.Matches.(string)).MatchString(paramValue)
+			t.Logf("  Matches %v: %v", v.Matches, doesMatch)
+		}
+		if v.DoesNotMatch != nil {
+			doesNotMatch := !regexp.MustCompile(v.DoesNotMatch.(string)).MatchString(paramValue)
+			t.Logf("  DoesNotMatch %v: %v", v.DoesNotMatch, doesNotMatch)
+		}
+		if v.Contains != nil {
+			contains := strings.Contains(paramValue, v.Contains.(string))
+			t.Logf("  Contains %v: %v", v.Contains, contains)
+		}
+		if v.DoesNotContain != nil {
+			doesNotContain := !strings.Contains(paramValue, v.DoesNotContain.(string))
+			t.Logf("  DoesNotContain %v: %v", v.DoesNotContain, doesNotContain)
+		}
+	}
+
+	// Just directly test the path matcher function with our test path
+	matched, pathMap := main.ExportPathMatcher(endpoint, "", testPath)
+	t.Logf("Path matcher result: %v, map: %v", matched, pathMap)
 }

@@ -55,7 +55,7 @@ type Endpoint struct {
 	Response    Response `json:"response"`
 }
 
-var (
+type handler struct {
 	// Global variables for configuration
 	host       string
 	port       int
@@ -63,9 +63,32 @@ var (
 	certFile   string
 	keyFile    string
 	configPath string
-)
+}
+type Handler interface {
+	// Handle function to process the request and response
+	handle(w http.ResponseWriter, r *http.Request)
+}
+
+func newHandler(h handler) handler {
+	return handler{
+		host:       h.host,
+		port:       h.port,
+		httpsPort:  h.httpsPort,
+		certFile:   h.certFile,
+		keyFile:    h.keyFile,
+		configPath: h.configPath,
+	}
+}
 
 func main() {
+	var (
+		host       string
+		port       int
+		httpsPort  int
+		certFile   string
+		keyFile    string
+		configPath string
+	)
 	// Host configuration
 	host = *flag.String("h", "localhost", "Host address to bind to (use 0.0.0.0 for Docker)")
 	flag.StringVar(&host, "host", "localhost", "Host address to bind to (use 0.0.0.0 for Docker)")
@@ -87,9 +110,18 @@ func main() {
 	flag.StringVar(&configPath, "c", "configs", "Path to configuration directory or file")
 	flag.Parse()
 
+	h := newHandler(handler{
+		host:       host,
+		port:       port,
+		httpsPort:  httpsPort,
+		certFile:   certFile,
+		keyFile:    keyFile,
+		configPath: configPath,
+	})
+
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", handle)
+	mux.HandleFunc("/", h.handle)
 
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	// defer stop()
@@ -159,8 +191,8 @@ func main() {
 	}
 }
 
-func handle(w http.ResponseWriter, r *http.Request) {
-	endpoints, err := loadConfig(configPath)
+func (h handler) handle(w http.ResponseWriter, r *http.Request) {
+	endpoints, err := loadConfig(h.configPath)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to load configuration: %v", err))
 	}

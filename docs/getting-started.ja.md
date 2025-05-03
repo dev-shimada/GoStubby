@@ -78,12 +78,17 @@ go run main.go
 curl または任意の HTTP クライアントを使用してエンドポイントをテストします：
 
 ```bash
-curl http://localhost:8080/hello/world
+curl -s -X GET "http://localhost:8080/example/file?param1=123%3F" | iconv -f sjis -t utf8
 ```
 
 期待されるレスポンス：
 ```json
-{"message": "こんにちは、worldさん！"}
+{
+    "message": "This is a stub response", 
+    "description": "テスト",
+    "path1": "file",
+    "param1": 123?
+}
 ```
 
 ## 基本的な設定例
