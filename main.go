@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -12,82 +11,29 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 	"syscall"
 	"text/template"
 	"time"
+
+	"github.com/dev-shimada/gostubby/internal/domain/model"
+	"github.com/dev-shimada/gostubby/internal/infrastructure/config"
 )
 
-// define the structure of the JSON configuration file
-type Matcher struct {
-	EqualTo        any `json:"equalTo"`
-	Matches        any `json:"matches"`
-	DoesNotMatch   any `json:"doesNotMatch"`
-	Contains       any `json:"contains"`
-	DoesNotContain any `json:"doesNotContain"`
-}
-type Request struct {
-	URL             string `json:"url"`             // パスパラメータ、クエリパラメータを含む完全一致
-	URLPattern      string `json:"urlPattern"`      // パスパラメータ、クエリパラメータを含む正規表現での完全一致
-	URLPath         string `json:"urlPath"`         // パスパラメータを含む完全一致
-	URLPathPattern  string `json:"urlPathPattern"`  // パスパラメータを含む正規表現での完全一致
-	URLPathTemplate string `json:"urlPathTemplate"` // パスパラメータを含むテンプレートでの完全一致
-
-	Method          string             `json:"method"`
-	QueryParameters map[string]Matcher `json:"queryParameters"`
-	PathParameters  map[string]Matcher `json:"pathParameters"`
-	Body            Matcher            `json:"body"`
-}
-type Response struct {
-	Status        int               `json:"status"`
-	BodyFileName  string            `json:"bodyFileName"` // bodyFileNameが指定されている場合は、bodyは無視される
-	Body          string            `json:"body"`         // bodyFileNameが指定されていない場合は、bodyを使用する
-	Headers       map[string]string `json:"headers"`
-	Transformaers []string          `json:"transformers"`
-}
-type Endpoint struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Request     Request  `json:"request"`
-	Response    Response `json:"response"`
-}
-
-type handler struct {
-	// Global variables for configuration
-	host       string
-	port       int
-	httpsPort  int
-	certFile   string
-	keyFile    string
+var (
 	configPath string
-}
-type Handler interface {
-	// Handle function to process the request and response
-	handle(w http.ResponseWriter, r *http.Request)
-}
-
-func newHandler(h handler) handler {
-	return handler{
-		host:       h.host,
-		port:       h.port,
-		httpsPort:  h.httpsPort,
-		certFile:   h.certFile,
-		keyFile:    h.keyFile,
-		configPath: h.configPath,
-	}
-}
+)
 
 func main() {
 	var (
-		host       string
-		port       int
-		httpsPort  int
-		certFile   string
-		keyFile    string
-		configPath string
+		host      string
+		port      int
+		httpsPort int
+		certFile  string
+		keyFile   string
+		// configPath string
 	)
 	// Host configuration
 	host = *flag.String("h", "localhost", "Host address to bind to (use 0.0.0.0 for Docker)")
@@ -110,18 +56,9 @@ func main() {
 	flag.StringVar(&configPath, "c", "configs", "Path to configuration directory or file")
 	flag.Parse()
 
-	h := newHandler(handler{
-		host:       host,
-		port:       port,
-		httpsPort:  httpsPort,
-		certFile:   certFile,
-		keyFile:    keyFile,
-		configPath: configPath,
-	})
-
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", h.handle)
+	mux.HandleFunc("/", handle)
 
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	// defer stop()
@@ -191,8 +128,10 @@ func main() {
 	}
 }
 
-func (h handler) handle(w http.ResponseWriter, r *http.Request) {
-	endpoints, err := loadConfig(h.configPath)
+// func (c config) handle(w http.ResponseWriter, r *http.Request) {
+func handle(w http.ResponseWriter, r *http.Request) {
+	config := config.NewConfigRepository()
+	endpoints, err := config.Load(configPath)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to load configuration: %v", err))
 	}
@@ -319,7 +258,7 @@ func rawQueryValues(r http.Request) (url.Values, error) {
 	return ret, nil
 }
 
-func pathMatcher(endpoint Endpoint, gotRawPath, gotPath string) (bool, map[string]string) {
+func pathMatcher(endpoint model.Endpoint, gotRawPath, gotPath string) (bool, map[string]string) {
 	// trim trailing slashes
 	gotPath = strings.TrimRight(gotPath, "/")
 	gotRawPath = strings.TrimRight(gotRawPath, "/")
@@ -409,7 +348,7 @@ func pathMatcher(endpoint Endpoint, gotRawPath, gotPath string) (bool, map[strin
 	return true, ret
 }
 
-func queryMatcher(endpoint Endpoint, gotQuery url.Values) bool {
+func queryMatcher(endpoint model.Endpoint, gotQuery url.Values) bool {
 	for k, v := range endpoint.Request.QueryParameters {
 		if v.EqualTo != nil {
 			if gotQuery.Get(k) != fmt.Sprint(v.EqualTo) {
@@ -440,7 +379,7 @@ func queryMatcher(endpoint Endpoint, gotQuery url.Values) bool {
 	return true
 }
 
-func bodyMatcher(endpoint Endpoint, body string) bool {
+func bodyMatcher(endpoint model.Endpoint, body string) bool {
 	if endpoint.Request.Body.EqualTo != nil {
 		if body != fmt.Sprint(endpoint.Request.Body.EqualTo) {
 			return false
@@ -467,69 +406,4 @@ func bodyMatcher(endpoint Endpoint, body string) bool {
 		}
 	}
 	return true
-}
-
-func loadConfig(path string) ([]Endpoint, error) {
-	var endpoints []Endpoint
-
-	// Check if path exists
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to access config path: %v", err)
-	}
-
-	// If path is a file, load it directly
-	if !info.IsDir() {
-		if filepath.Ext(path) != ".json" {
-			return nil, fmt.Errorf("config file must be a JSON file")
-		}
-		file, err := os.Open(path)
-		if err != nil {
-			return nil, err
-		}
-		defer func() {
-			if err := file.Close(); err != nil {
-				slog.Error(fmt.Sprintf("Failed to close file: %s", err))
-			}
-		}()
-		byteValue, _ := io.ReadAll(file)
-		var newEndpoints []Endpoint
-		err = json.Unmarshal(byteValue, &newEndpoints)
-		if err != nil {
-			return nil, err
-		}
-		return newEndpoints, nil
-	}
-
-	// If path is a directory, walk through it
-	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() || filepath.Ext(path) != ".json" {
-			return nil
-		}
-		file, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err := file.Close(); err != nil {
-				slog.Error(fmt.Sprintf("Failed to close file: %s", err))
-			}
-		}()
-		byteValue, _ := io.ReadAll(file)
-		var newEndpoints []Endpoint
-		err = json.Unmarshal(byteValue, &newEndpoints)
-		if err != nil {
-			return err
-		}
-		endpoints = append(endpoints, newEndpoints...)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return endpoints, nil
 }
