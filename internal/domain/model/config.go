@@ -1,5 +1,14 @@
 package model
 
+import (
+	"fmt"
+	"log/slog"
+	"net/url"
+	"regexp"
+	"slices"
+	"strings"
+)
+
 // define the structure of the JSON configuration file
 type Matcher struct {
 	EqualTo        any `json:"equalTo"`
@@ -32,4 +41,129 @@ type Endpoint struct {
 	Description string   `json:"description"`
 	Request     Request  `json:"request"`
 	Response    Response `json:"response"`
+}
+
+func (endpoint Endpoint) PathMatcher(gotRawPath, gotPath string) (bool, map[string]string) {
+	// trim trailing slashes
+	gotPath = strings.TrimRight(gotPath, "/")
+	gotRawPath = strings.TrimRight(gotRawPath, "/")
+
+	var url string
+	switch {
+	case endpoint.Request.URL != "":
+		url = strings.TrimRight(endpoint.Request.URL, "/")
+		if gotRawPath != url {
+			return false, nil
+		}
+		return true, nil
+	case endpoint.Request.URLPattern != "":
+		url = strings.TrimRight(endpoint.Request.URLPattern, "/")
+		if !regexp.MustCompile(url).MatchString(gotRawPath) {
+			return false, nil
+		}
+		return true, nil
+	case endpoint.Request.URLPath != "":
+		url = strings.TrimRight(endpoint.Request.URLPath, "/")
+		if gotPath != url {
+			return false, nil
+		}
+		return true, nil
+	case endpoint.Request.URLPathPattern != "":
+		url = strings.TrimRight(endpoint.Request.URLPathPattern, "/")
+		if !regexp.MustCompile(url).MatchString(gotPath) {
+			return false, nil
+		}
+		return true, nil
+	case endpoint.Request.URLPathTemplate != "":
+		url = strings.TrimRight(endpoint.Request.URLPathTemplate, "/")
+	default:
+		return false, nil
+	}
+
+	// check if the path parameters match
+	requredPathUnits := strings.Split(url, "/")
+	gotPathUnits := strings.Split(gotPath, "/")
+	if len(requredPathUnits) != len(gotPathUnits) {
+		return false, nil
+	}
+
+	// placeholder->position
+	posMap := make(map[string]int)
+	for k := range endpoint.Request.PathParameters {
+		placeHolder := fmt.Sprintf("{%s}", k)
+		if i := slices.Index(requredPathUnits, placeHolder); i == -1 {
+			slog.Error(fmt.Sprintf("Path parameter %s not found in path %s", k, gotPath))
+			return false, nil
+		} else {
+			posMap[k] = i
+		}
+	}
+
+	for k, v := range endpoint.Request.PathParameters {
+		if v.EqualTo != nil && gotPathUnits[posMap[k]] != fmt.Sprint(v.EqualTo) {
+			return false, nil
+		}
+		if v.Matches != nil && !regexp.MustCompile(v.Matches.(string)).MatchString(gotPathUnits[posMap[k]]) {
+			return false, nil
+		}
+		if v.DoesNotMatch != nil && regexp.MustCompile(v.DoesNotMatch.(string)).MatchString(gotPathUnits[posMap[k]]) {
+			return false, nil
+		}
+		if v.Contains != nil && !strings.Contains(gotPathUnits[posMap[k]], v.Contains.(string)) {
+			return false, nil
+		}
+		if v.DoesNotContain != nil && strings.Contains(gotPathUnits[posMap[k]], v.DoesNotContain.(string)) {
+			return false, nil
+		}
+	}
+	ret := make(map[string]string)
+	for k, v := range posMap {
+		ret[k] = gotPathUnits[v]
+	}
+	return true, ret
+}
+
+func (endpoint Endpoint) QueryMatcher(gotRawQuery, gotQuery url.Values) (bool, map[string]string) {
+	for k, v := range endpoint.Request.QueryParameters {
+		if v.EqualTo != nil && gotRawQuery.Get(k) != fmt.Sprint(v.EqualTo) {
+			return false, nil
+		}
+		if v.Matches != nil && !regexp.MustCompile(v.Matches.(string)).MatchString(gotRawQuery.Get(k)) {
+			return false, nil
+		}
+		if v.DoesNotMatch != nil && regexp.MustCompile(v.DoesNotMatch.(string)).MatchString(gotRawQuery.Get(k)) {
+			return false, nil
+		}
+		if v.Contains != nil && !strings.Contains(gotRawQuery.Get(k), v.Contains.(string)) {
+			return false, nil
+		}
+		if v.DoesNotContain != nil && strings.Contains(gotRawQuery.Get(k), v.DoesNotContain.(string)) {
+			return false, nil
+
+		}
+	}
+	ret := make(map[string]string)
+	for k, v := range gotQuery {
+		ret[k] = v[0]
+	}
+	return true, ret
+}
+
+func (endpoint Endpoint) BodyMatcher(body string) bool {
+	if endpoint.Request.Body.EqualTo != nil && body != fmt.Sprint(endpoint.Request.Body.EqualTo) {
+		return false
+	}
+	if endpoint.Request.Body.Matches != nil && !regexp.MustCompile(endpoint.Request.Body.Matches.(string)).MatchString(body) {
+		return false
+	}
+	if endpoint.Request.Body.DoesNotMatch != nil && regexp.MustCompile(endpoint.Request.Body.DoesNotMatch.(string)).MatchString(body) {
+		return false
+	}
+	if endpoint.Request.Body.Contains != nil && !strings.Contains(body, endpoint.Request.Body.Contains.(string)) {
+		return false
+	}
+	if endpoint.Request.Body.DoesNotContain != nil && strings.Contains(body, endpoint.Request.Body.DoesNotContain.(string)) {
+		return false
+	}
+	return true
 }
