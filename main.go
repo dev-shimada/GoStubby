@@ -11,14 +11,13 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"regexp"
-	"slices"
 	"strings"
 	"syscall"
 	"text/template"
 	"time"
 
 	"github.com/dev-shimada/gostubby/internal/domain/model"
+	"github.com/dev-shimada/gostubby/internal/domain/repository"
 	"github.com/dev-shimada/gostubby/internal/infrastructure/config"
 )
 
@@ -128,119 +127,66 @@ func main() {
 	}
 }
 
-// func (c config) handle(w http.ResponseWriter, r *http.Request) {
+type endpointUsecase interface {
+	endpointMatcher(EndpointMatcherArgs) (EndpointMatcherResult, error)
+	responseCreator(ResponseCreatorArgs) (ResponseCreatorResult, error)
+}
+
 func handle(w http.ResponseWriter, r *http.Request) {
-	config := config.NewConfigRepository()
-	endpoints, err := config.Load(configPath)
+	cr := config.NewConfigRepository()
+	var ne endpointUsecase = NewEndpointUsecase(cr)
+	rqv, err := rawQueryValues(*r)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to load configuration: %v", err))
+		slog.Error(fmt.Sprintf("Failed to parse query parameters: %s", err))
+		http.NotFound(w, r)
+		return
 	}
-	for _, endpoint := range endpoints {
-		var responseBody string
-		switch {
-		case endpoint.Response.BodyFileName != "":
-			file, err := os.Open(endpoint.Response.BodyFileName)
-			if err != nil {
-				http.Error(w, "Failed to open body file", http.StatusInternalServerError)
-				return
-			}
-			defer func() {
-				if err := file.Close(); err != nil {
-					slog.Error(fmt.Sprintf("Failed to close file: %s", err))
-				}
-			}()
-		case endpoint.Response.Body != "":
-			responseBody = endpoint.Response.Body
-		default:
-			slog.Error("Response body is empty")
-			http.Error(w, "Response body is empty", http.StatusInternalServerError)
-			return
-		}
 
-		// pathMatcher
-		isMatchPath, pathMap := pathMatcher(endpoint, r.URL.RawPath, r.URL.Path)
-		// queryMatcher
-		rqv, err := rawQueryValues(*r)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to parse query parameters: %s", err))
-			http.Error(w, "Failed to parse query parameters", http.StatusInternalServerError)
-			return
-		}
-		isMatchQuery := queryMatcher(endpoint, rqv)
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to read request body: %s", err))
-			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
-			return
-		}
-		isMatchBody := bodyMatcher(endpoint, string(body))
-		if r.Method == endpoint.Request.Method && isMatchPath && isMatchQuery && isMatchBody {
-			slog.Info(fmt.Sprintf("Matched endpoint: %s", endpoint.Name))
-			w.WriteHeader(endpoint.Response.Status)
-
-			type gotParams struct {
-				Path  map[string]string
-				Query map[string]string
-			}
-			q := make(map[string]string)
-			for k, v := range r.URL.Query() {
-				q[k] = v[0]
-			}
-			gp := gotParams{
-				Query: q,
-				Path:  pathMap,
-			}
-
-			// bodyFileNameが指定されている場合は、bodyは無視される
-			if endpoint.Response.BodyFileName != "" {
-				file, err := os.Open(endpoint.Response.BodyFileName)
-				if err != nil {
-					slog.Error(fmt.Sprintf("Failed to open body file: %s", err))
-					http.Error(w, "Failed to open body file", http.StatusInternalServerError)
-					return
-				}
-				defer func() {
-					if err := file.Close(); err != nil {
-						slog.Error(fmt.Sprintf("Failed to close file: %s", err))
-					}
-				}()
-				body, err := io.ReadAll(file)
-				if err != nil {
-					slog.Error(fmt.Sprintf("Failed to read body file: %s", err))
-					http.Error(w, "Failed to read body file", http.StatusInternalServerError)
-					return
-				}
-				responseBody = string(body)
-				tpl, err := template.New("response").Parse(responseBody)
-				if err != nil {
-					slog.Error(fmt.Sprintf("Failed to parse response template: %s", err))
-					http.Error(w, "Failed to parse response template", http.StatusInternalServerError)
-					return
-				}
-				if err := tpl.Execute(w, gp); err != nil {
-					slog.Error(fmt.Sprintf("Failed to execute response template: %s", err))
-					http.Error(w, "Failed to execute response template", http.StatusInternalServerError)
-					return
-				}
-				return
-			}
-
-			// bodyFileNameが指定されていない場合は、bodyを使用する
-			tpl, err := template.New("response").Parse(responseBody)
-			if err != nil {
-				slog.Error(fmt.Sprintf("Failed to parse response template: %s", err))
-				http.Error(w, "Failed to parse response template", http.StatusInternalServerError)
-				return
-			}
-			if err := tpl.Execute(w, gp); err != nil {
-				slog.Error(fmt.Sprintf("Failed to execute response template: %s", err))
-				http.Error(w, "Failed to execute response template", http.StatusInternalServerError)
-				return
-			}
-			return
-		}
+	EndpointMatcherArgs := EndpointMatcherArgs{
+		Request: struct {
+			UrlRawPath     string
+			UrlPath        string
+			Body           io.ReadCloser
+			Method         string
+			RawQueryValues url.Values
+			QueryValues    url.Values
+		}{
+			UrlRawPath:     r.URL.RawPath,
+			UrlPath:        r.URL.Path,
+			Body:           r.Body,
+			Method:         r.Method,
+			RawQueryValues: rqv,
+			QueryValues:    r.URL.Query(),
+		},
+		ConfigPath: configPath,
 	}
-	http.NotFound(w, r)
+	em, err := ne.endpointMatcher(EndpointMatcherArgs)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to match endpoint: %v", err))
+		http.NotFound(w, r)
+		return
+	}
+	w.WriteHeader(em.ResponseStatus)
+	ResponseCreatorArgs := ResponseCreatorArgs{
+		Request: struct {
+			UrlQuery url.Values
+		}{
+			UrlQuery: r.URL.Query(),
+		},
+		Endpoint:     em.Endpoint,
+		ResponseBody: em.ResponseBody,
+	}
+	rc, err := ne.responseCreator(ResponseCreatorArgs)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to create response: %v", err))
+		http.NotFound(w, r)
+		return
+	}
+	if err := rc.Template.Execute(w, em.Data); err != nil {
+		slog.Error(fmt.Sprintf("Failed to execute template: %s", err))
+		http.NotFound(w, r)
+		return
+	}
 }
 
 // rawQueryValues parses the raw query string from the request URL and returns a url.Values map.
@@ -258,152 +204,118 @@ func rawQueryValues(r http.Request) (url.Values, error) {
 	return ret, nil
 }
 
-func pathMatcher(endpoint model.Endpoint, gotRawPath, gotPath string) (bool, map[string]string) {
-	// trim trailing slashes
-	gotPath = strings.TrimRight(gotPath, "/")
-	gotRawPath = strings.TrimRight(gotRawPath, "/")
-
-	var url string
-	switch {
-	case endpoint.Request.URL != "":
-		url = strings.TrimRight(endpoint.Request.URL, "/")
-		if gotRawPath != url {
-			return false, nil
-		}
-		return true, nil
-	case endpoint.Request.URLPattern != "":
-		url = strings.TrimRight(endpoint.Request.URLPattern, "/")
-		if !regexp.MustCompile(url).MatchString(gotRawPath) {
-			return false, nil
-		}
-		return true, nil
-	case endpoint.Request.URLPath != "":
-		url = strings.TrimRight(endpoint.Request.URLPath, "/")
-		if gotPath != url {
-			return false, nil
-		}
-		return true, nil
-	case endpoint.Request.URLPathPattern != "":
-		url = strings.TrimRight(endpoint.Request.URLPathPattern, "/")
-		if !regexp.MustCompile(url).MatchString(gotPath) {
-			return false, nil
-		}
-		return true, nil
-	case endpoint.Request.URLPathTemplate != "":
-		url = strings.TrimRight(endpoint.Request.URLPathTemplate, "/")
-	default:
-		return false, nil
-	}
-
-	// check if the path parameters match
-	requredPathUnits := strings.Split(url, "/")
-	gotPathUnits := strings.Split(gotPath, "/")
-	if len(requredPathUnits) != len(gotPathUnits) {
-		return false, nil
-	}
-
-	// placeholder->position
-	posMap := make(map[string]int)
-	for k := range endpoint.Request.PathParameters {
-		placeHolder := fmt.Sprintf("{%s}", k)
-		if i := slices.Index(requredPathUnits, placeHolder); i == -1 {
-			slog.Error(fmt.Sprintf("Path parameter %s not found in path %s", k, gotPath))
-			return false, nil
-		} else {
-			posMap[k] = i
-		}
-	}
-
-	for k, v := range endpoint.Request.PathParameters {
-		if v.EqualTo != nil {
-			if gotPathUnits[posMap[k]] != fmt.Sprint(v.EqualTo) {
-				return false, nil
-			}
-		}
-		if v.Matches != nil {
-			if !regexp.MustCompile(v.Matches.(string)).MatchString(gotPathUnits[posMap[k]]) {
-				return false, nil
-			}
-		}
-		if v.DoesNotMatch != nil {
-			if regexp.MustCompile(v.DoesNotMatch.(string)).MatchString(gotPathUnits[posMap[k]]) {
-				return false, nil
-			}
-		}
-		if v.Contains != nil {
-			if !strings.Contains(gotPathUnits[posMap[k]], v.Contains.(string)) {
-				return false, nil
-			}
-		}
-		if v.DoesNotContain != nil {
-			if strings.Contains(gotPathUnits[posMap[k]], v.DoesNotContain.(string)) {
-				return false, nil
-			}
-		}
-	}
-	ret := make(map[string]string)
-	for k, v := range posMap {
-		ret[k] = gotPathUnits[v]
-	}
-	return true, ret
+type EndpointUsecase struct {
+	cr repository.ConfigRepository
 }
 
-func queryMatcher(endpoint model.Endpoint, gotQuery url.Values) bool {
-	for k, v := range endpoint.Request.QueryParameters {
-		if v.EqualTo != nil {
-			if gotQuery.Get(k) != fmt.Sprint(v.EqualTo) {
-				return false
-			}
-		}
-		if v.Matches != nil {
-			if !regexp.MustCompile(v.Matches.(string)).MatchString(gotQuery.Get(k)) {
-				return false
-			}
-		}
-		if v.DoesNotMatch != nil {
-			if regexp.MustCompile(v.DoesNotMatch.(string)).MatchString(gotQuery.Get(k)) {
-				return false
-			}
-		}
-		if v.Contains != nil {
-			if !strings.Contains(gotQuery.Get(k), v.Contains.(string)) {
-				return false
-			}
-		}
-		if v.DoesNotContain != nil {
-			if strings.Contains(gotQuery.Get(k), v.DoesNotContain.(string)) {
-				return false
-			}
-		}
+func NewEndpointUsecase(cr repository.ConfigRepository) *EndpointUsecase {
+	return &EndpointUsecase{
+		cr: cr,
 	}
-	return true
 }
 
-func bodyMatcher(endpoint model.Endpoint, body string) bool {
-	if endpoint.Request.Body.EqualTo != nil {
-		if body != fmt.Sprint(endpoint.Request.Body.EqualTo) {
-			return false
+type EndpointMatcherArgs struct {
+	Request struct {
+		UrlRawPath     string
+		UrlPath        string
+		Body           io.ReadCloser
+		Method         string
+		RawQueryValues url.Values
+		QueryValues    url.Values
+	}
+	ConfigPath string
+}
+type EndpointMatcherResult struct {
+	Endpoint       model.Endpoint
+	ResponseBody   string
+	ResponseStatus int
+	Data           struct {
+		Path  map[string]string
+		Query map[string]string
+	}
+}
+
+func (eu EndpointUsecase) endpointMatcher(arg EndpointMatcherArgs) (EndpointMatcherResult, error) {
+	endpoints, err := eu.cr.Load(configPath)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to load configuration: %v", err))
+		return EndpointMatcherResult{}, err
+	}
+	for _, e := range endpoints {
+		var responseBody string
+		switch {
+		case e.Response.BodyFileName != "":
+			file, err := os.Open(e.Response.BodyFileName)
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to open body file: %s", err))
+				return EndpointMatcherResult{}, err
+			}
+			defer func() {
+				if err := file.Close(); err != nil {
+					slog.Error(fmt.Sprintf("Failed to close file: %s", err))
+				}
+			}()
+			body, err := io.ReadAll(file)
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to read body file: %s", err))
+				return EndpointMatcherResult{}, err
+			}
+			responseBody = string(body)
+		case e.Response.Body != "":
+			responseBody = e.Response.Body
+		default:
+			slog.Error("Response body is empty")
+			return EndpointMatcherResult{}, fmt.Errorf("response body is empty")
+		}
+
+		// pathMatcher
+		isMatchPath, pathMap := e.PathMatcher(arg.Request.UrlRawPath, arg.Request.UrlPath)
+		// queryMatcher
+		isMatchQuery, queryMap := e.QueryMatcher(arg.Request.RawQueryValues, arg.Request.QueryValues)
+		body, err := io.ReadAll(arg.Request.Body)
+		if err != nil {
+			slog.Error(fmt.Sprintf("Failed to read request body: %s", err))
+			return EndpointMatcherResult{}, err
+		}
+		isMatchBody := e.BodyMatcher(string(body))
+		if arg.Request.Method == e.Request.Method && isMatchPath && isMatchQuery && isMatchBody {
+			slog.Info(fmt.Sprintf("Matched endpoint: %s", e.Name))
+			return EndpointMatcherResult{
+				Endpoint:       e,
+				ResponseBody:   responseBody,
+				ResponseStatus: e.Response.Status,
+				Data: struct {
+					Path  map[string]string
+					Query map[string]string
+				}{
+					Path:  pathMap,
+					Query: queryMap,
+				},
+			}, nil
 		}
 	}
-	if endpoint.Request.Body.Matches != nil {
-		if !regexp.MustCompile(endpoint.Request.Body.Matches.(string)).MatchString(body) {
-			return false
-		}
+	return EndpointMatcherResult{}, fmt.Errorf("no matching endpoint found")
+}
+
+type ResponseCreatorArgs struct {
+	Request struct {
+		UrlQuery url.Values
 	}
-	if endpoint.Request.Body.DoesNotMatch != nil {
-		if regexp.MustCompile(endpoint.Request.Body.DoesNotMatch.(string)).MatchString(body) {
-			return false
-		}
+	Endpoint     model.Endpoint
+	ResponseBody string
+	PathMap      map[string]string
+}
+type ResponseCreatorResult struct {
+	Template *template.Template
+}
+
+func (eu EndpointUsecase) responseCreator(arg ResponseCreatorArgs) (ResponseCreatorResult, error) {
+	tpl, err := template.New("response").Parse(arg.ResponseBody)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to parse response template: %s", err))
+		return ResponseCreatorResult{}, err
 	}
-	if endpoint.Request.Body.Contains != nil {
-		if !strings.Contains(body, endpoint.Request.Body.Contains.(string)) {
-			return false
-		}
-	}
-	if endpoint.Request.Body.DoesNotContain != nil {
-		if strings.Contains(body, endpoint.Request.Body.DoesNotContain.(string)) {
-			return false
-		}
-	}
-	return true
+	return ResponseCreatorResult{
+		Template: tpl,
+	}, nil
 }
