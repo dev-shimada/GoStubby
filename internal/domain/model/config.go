@@ -100,19 +100,16 @@ func (endpoint Endpoint) PathMatcher(gotRawPath, gotPath string) (bool, map[stri
 	}
 
 	for k, v := range endpoint.Request.PathParameters {
-		if v.EqualTo != nil && gotPathUnits[posMap[k]] != fmt.Sprint(v.EqualTo) {
+		switch {
+		case v.EqualTo != nil && gotPathUnits[posMap[k]] != fmt.Sprint(v.EqualTo):
 			return false, nil
-		}
-		if v.Matches != nil && !regexp.MustCompile(v.Matches.(string)).MatchString(gotPathUnits[posMap[k]]) {
+		case v.Matches != nil && !regexp.MustCompile(v.Matches.(string)).MatchString(gotPathUnits[posMap[k]]):
 			return false, nil
-		}
-		if v.DoesNotMatch != nil && regexp.MustCompile(v.DoesNotMatch.(string)).MatchString(gotPathUnits[posMap[k]]) {
+		case v.DoesNotMatch != nil && regexp.MustCompile(v.DoesNotMatch.(string)).MatchString(gotPathUnits[posMap[k]]):
 			return false, nil
-		}
-		if v.Contains != nil && !strings.Contains(gotPathUnits[posMap[k]], v.Contains.(string)) {
+		case v.Contains != nil && !strings.Contains(gotPathUnits[posMap[k]], v.Contains.(string)):
 			return false, nil
-		}
-		if v.DoesNotContain != nil && strings.Contains(gotPathUnits[posMap[k]], v.DoesNotContain.(string)) {
+		case v.DoesNotContain != nil && strings.Contains(gotPathUnits[posMap[k]], v.DoesNotContain.(string)):
 			return false, nil
 		}
 	}
@@ -125,21 +122,17 @@ func (endpoint Endpoint) PathMatcher(gotRawPath, gotPath string) (bool, map[stri
 
 func (endpoint Endpoint) QueryMatcher(gotRawQuery, gotQuery url.Values) (bool, map[string]string) {
 	for k, v := range endpoint.Request.QueryParameters {
-		if v.EqualTo != nil && gotRawQuery.Get(k) != fmt.Sprint(v.EqualTo) {
+		switch {
+		case v.EqualTo != nil && gotRawQuery.Get(k) != fmt.Sprint(v.EqualTo):
 			return false, nil
-		}
-		if v.Matches != nil && !regexp.MustCompile(v.Matches.(string)).MatchString(gotRawQuery.Get(k)) {
+		case v.Matches != nil && !regexp.MustCompile(v.Matches.(string)).MatchString(gotRawQuery.Get(k)):
 			return false, nil
-		}
-		if v.DoesNotMatch != nil && regexp.MustCompile(v.DoesNotMatch.(string)).MatchString(gotRawQuery.Get(k)) {
+		case v.DoesNotMatch != nil && regexp.MustCompile(v.DoesNotMatch.(string)).MatchString(gotRawQuery.Get(k)):
 			return false, nil
-		}
-		if v.Contains != nil && !strings.Contains(gotRawQuery.Get(k), v.Contains.(string)) {
+		case v.Contains != nil && !strings.Contains(gotRawQuery.Get(k), v.Contains.(string)):
 			return false, nil
-		}
-		if v.DoesNotContain != nil && strings.Contains(gotRawQuery.Get(k), v.DoesNotContain.(string)) {
+		case v.DoesNotContain != nil && strings.Contains(gotRawQuery.Get(k), v.DoesNotContain.(string)):
 			return false, nil
-
 		}
 	}
 	ret := make(map[string]string)
@@ -150,19 +143,16 @@ func (endpoint Endpoint) QueryMatcher(gotRawQuery, gotQuery url.Values) (bool, m
 }
 
 func (endpoint Endpoint) BodyMatcher(body string) bool {
-	if endpoint.Request.Body.EqualTo != nil && body != fmt.Sprint(endpoint.Request.Body.EqualTo) {
+	switch {
+	case endpoint.Request.Body.EqualTo != nil && body != fmt.Sprint(endpoint.Request.Body.EqualTo):
 		return false
-	}
-	if endpoint.Request.Body.Matches != nil && !regexp.MustCompile(endpoint.Request.Body.Matches.(string)).MatchString(body) {
+	case endpoint.Request.Body.Matches != nil && !regexp.MustCompile(endpoint.Request.Body.Matches.(string)).MatchString(body):
 		return false
-	}
-	if endpoint.Request.Body.DoesNotMatch != nil && regexp.MustCompile(endpoint.Request.Body.DoesNotMatch.(string)).MatchString(body) {
+	case endpoint.Request.Body.DoesNotMatch != nil && regexp.MustCompile(endpoint.Request.Body.DoesNotMatch.(string)).MatchString(body):
 		return false
-	}
-	if endpoint.Request.Body.Contains != nil && !strings.Contains(body, endpoint.Request.Body.Contains.(string)) {
+	case endpoint.Request.Body.Contains != nil && !strings.Contains(body, endpoint.Request.Body.Contains.(string)):
 		return false
-	}
-	if endpoint.Request.Body.DoesNotContain != nil && strings.Contains(body, endpoint.Request.Body.DoesNotContain.(string)) {
+	case endpoint.Request.Body.DoesNotContain != nil && strings.Contains(body, endpoint.Request.Body.DoesNotContain.(string)):
 		return false
 	}
 	return true

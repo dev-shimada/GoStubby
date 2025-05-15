@@ -9,16 +9,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"os/signal"
 	"strings"
 	"syscall"
-	"text/template"
 	"time"
 
-	"github.com/dev-shimada/gostubby/internal/domain/model"
-	"github.com/dev-shimada/gostubby/internal/domain/repository"
 	"github.com/dev-shimada/gostubby/internal/infrastructure/config"
+	"github.com/dev-shimada/gostubby/internal/usecase"
 )
 
 var (
@@ -128,13 +125,13 @@ func main() {
 }
 
 type endpointUsecase interface {
-	endpointMatcher(EndpointMatcherArgs) (EndpointMatcherResult, error)
-	responseCreator(ResponseCreatorArgs) (ResponseCreatorResult, error)
+	EndpointMatcher(usecase.EndpointMatcherArgs) (usecase.EndpointMatcherResult, error)
+	ResponseCreator(usecase.ResponseCreatorArgs) (usecase.ResponseCreatorResult, error)
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
 	cr := config.NewConfigRepository()
-	var ne endpointUsecase = NewEndpointUsecase(cr)
+	var ne endpointUsecase = usecase.NewEndpointUsecase(cr)
 	rqv, err := rawQueryValues(*r)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to parse query parameters: %s", err))
@@ -142,7 +139,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	EndpointMatcherArgs := EndpointMatcherArgs{
+	EndpointMatcherArgs := usecase.EndpointMatcherArgs{
 		Request: struct {
 			UrlRawPath     string
 			UrlPath        string
@@ -160,14 +157,14 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		},
 		ConfigPath: configPath,
 	}
-	em, err := ne.endpointMatcher(EndpointMatcherArgs)
+	em, err := ne.EndpointMatcher(EndpointMatcherArgs)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to match endpoint: %v", err))
 		http.NotFound(w, r)
 		return
 	}
 	w.WriteHeader(em.ResponseStatus)
-	ResponseCreatorArgs := ResponseCreatorArgs{
+	ResponseCreatorArgs := usecase.ResponseCreatorArgs{
 		Request: struct {
 			UrlQuery url.Values
 		}{
@@ -176,7 +173,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		Endpoint:     em.Endpoint,
 		ResponseBody: em.ResponseBody,
 	}
-	rc, err := ne.responseCreator(ResponseCreatorArgs)
+	rc, err := ne.ResponseCreator(ResponseCreatorArgs)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to create response: %v", err))
 		http.NotFound(w, r)
@@ -202,120 +199,4 @@ func rawQueryValues(r http.Request) (url.Values, error) {
 		ret.Add(kv[0], kv[1])
 	}
 	return ret, nil
-}
-
-type EndpointUsecase struct {
-	cr repository.ConfigRepository
-}
-
-func NewEndpointUsecase(cr repository.ConfigRepository) *EndpointUsecase {
-	return &EndpointUsecase{
-		cr: cr,
-	}
-}
-
-type EndpointMatcherArgs struct {
-	Request struct {
-		UrlRawPath     string
-		UrlPath        string
-		Body           io.ReadCloser
-		Method         string
-		RawQueryValues url.Values
-		QueryValues    url.Values
-	}
-	ConfigPath string
-}
-type EndpointMatcherResult struct {
-	Endpoint       model.Endpoint
-	ResponseBody   string
-	ResponseStatus int
-	Data           struct {
-		Path  map[string]string
-		Query map[string]string
-	}
-}
-
-func (eu EndpointUsecase) endpointMatcher(arg EndpointMatcherArgs) (EndpointMatcherResult, error) {
-	endpoints, err := eu.cr.Load(configPath)
-	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to load configuration: %v", err))
-		return EndpointMatcherResult{}, err
-	}
-	for _, e := range endpoints {
-		var responseBody string
-		switch {
-		case e.Response.BodyFileName != "":
-			file, err := os.Open(e.Response.BodyFileName)
-			if err != nil {
-				slog.Error(fmt.Sprintf("Failed to open body file: %s", err))
-				return EndpointMatcherResult{}, err
-			}
-			defer func() {
-				if err := file.Close(); err != nil {
-					slog.Error(fmt.Sprintf("Failed to close file: %s", err))
-				}
-			}()
-			body, err := io.ReadAll(file)
-			if err != nil {
-				slog.Error(fmt.Sprintf("Failed to read body file: %s", err))
-				return EndpointMatcherResult{}, err
-			}
-			responseBody = string(body)
-		case e.Response.Body != "":
-			responseBody = e.Response.Body
-		default:
-			slog.Error("Response body is empty")
-			return EndpointMatcherResult{}, fmt.Errorf("response body is empty")
-		}
-
-		// pathMatcher
-		isMatchPath, pathMap := e.PathMatcher(arg.Request.UrlRawPath, arg.Request.UrlPath)
-		// queryMatcher
-		isMatchQuery, queryMap := e.QueryMatcher(arg.Request.RawQueryValues, arg.Request.QueryValues)
-		body, err := io.ReadAll(arg.Request.Body)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to read request body: %s", err))
-			return EndpointMatcherResult{}, err
-		}
-		isMatchBody := e.BodyMatcher(string(body))
-		if arg.Request.Method == e.Request.Method && isMatchPath && isMatchQuery && isMatchBody {
-			slog.Info(fmt.Sprintf("Matched endpoint: %s", e.Name))
-			return EndpointMatcherResult{
-				Endpoint:       e,
-				ResponseBody:   responseBody,
-				ResponseStatus: e.Response.Status,
-				Data: struct {
-					Path  map[string]string
-					Query map[string]string
-				}{
-					Path:  pathMap,
-					Query: queryMap,
-				},
-			}, nil
-		}
-	}
-	return EndpointMatcherResult{}, fmt.Errorf("no matching endpoint found")
-}
-
-type ResponseCreatorArgs struct {
-	Request struct {
-		UrlQuery url.Values
-	}
-	Endpoint     model.Endpoint
-	ResponseBody string
-	PathMap      map[string]string
-}
-type ResponseCreatorResult struct {
-	Template *template.Template
-}
-
-func (eu EndpointUsecase) responseCreator(arg ResponseCreatorArgs) (ResponseCreatorResult, error) {
-	tpl, err := template.New("response").Parse(arg.ResponseBody)
-	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to parse response template: %s", err))
-		return ResponseCreatorResult{}, err
-	}
-	return ResponseCreatorResult{
-		Template: tpl,
-	}, nil
 }
