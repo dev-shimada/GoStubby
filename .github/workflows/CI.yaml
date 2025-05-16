@@ -8,38 +8,109 @@ on:
   workflow_dispatch:
 
 jobs:
-  ci:
+  setup:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Create an artifact of the repository to use in parallel jobs
+      - name: Upload repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo
+          path: .
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: ./go.mod
-    
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v7
-      with:
-        version: v2.0
+  lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo
+      
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+      
+      - name: Download Go modules
+        shell: bash
+        if: ${{ steps.setup-go.outputs.cache-hit != 'true' }}
+        run: go mod download
+      
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.0
 
-    - name: Go Vet
-      run: go vet ./...
+  vet:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo
+      
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+      
+      - name: Download Go modules
+        shell: bash
+        if: ${{ steps.setup.outputs.cache-hit != 'true' }}
+        run: go mod download
 
-    - name: Test
-      run: go test -v ./...
+      - name: Go Vet
+        run: go vet ./...
 
-    - name: Build
-      run: go build
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo
+      
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
 
-    - name: Run Unit tests
-      run: |
-        go test -race -covermode atomic -coverprofile=covprofile ./...
+      - name: Download Go modules
+        shell: bash
+        if: ${{ steps.setup.outputs.cache-hit != 'true' }}
+        run: go mod download
 
-    - name: Install goveralls
-      run: go install github.com/mattn/goveralls@latest
+      - name: Build
+        run: go build
 
-    - name: Send coverage
-      env:
-        COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: goveralls -coverprofile=covprofile -service=github
+  test:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download repo
+        uses: actions/download-artifact@v4
+        with:
+          name: repo
+      
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+      
+      - name: Download Go modules
+        shell: bash
+        if: ${{ steps.setup.outputs.cache-hit != 'true' }}
+        run: go mod download
+      
+      - name: Test
+        run: go test -v ./...
