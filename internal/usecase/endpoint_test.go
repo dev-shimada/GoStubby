@@ -534,13 +534,19 @@ func TestEndpointUsecase_ResponseCreator(t *testing.T) {
 
 				if got.Template != nil {
 					var gotBuf strings.Builder
-					got.Template.Execute(&gotBuf, struct{}{})
+					if err := got.Template.Execute(&gotBuf, struct{}{}); err != nil {
+						t.Errorf("Failed to execute got template: %v", err)
+						return
+					}
 					gotText = gotBuf.String()
 				}
 
 				if tt.want.Template != nil {
 					var wantBuf strings.Builder
-					tt.want.Template.Execute(&wantBuf, struct{}{})
+					if err := tt.want.Template.Execute(&wantBuf, struct{}{}); err != nil {
+						t.Errorf("Failed to execute want template: %v", err)
+						return
+					}
 					wantText = wantBuf.String()
 				}
 
