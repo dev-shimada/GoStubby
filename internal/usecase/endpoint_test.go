@@ -528,27 +528,41 @@ func TestEndpointUsecase_ResponseCreator(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				// テンプレート自体を比較するのは難しいため、テンプレートの文字列表現を比較
-				gotText := ""
-				wantText := ""
+				// テンプレートを直接比較するのではなく、実行結果を比較
+				// テンプレート変数用のモックデータ
+				type templateData struct {
+					Path  map[string]string
+					Query map[string]string
+				}
+				
+				mockData := templateData{
+					Path: map[string]string{
+						"id": "123",
+					},
+					Query: map[string]string{
+						"param": "value",
+					},
+				}
 
+				// 両方のテンプレートを同じモックデータで実行して結果を比較
+				var gotBuf, wantBuf strings.Builder
+				
 				if got.Template != nil {
-					var gotBuf strings.Builder
-					if err := got.Template.Execute(&gotBuf, struct{}{}); err != nil {
+					if err := got.Template.Execute(&gotBuf, mockData); err != nil {
 						t.Errorf("Failed to execute got template: %v", err)
 						return
 					}
-					gotText = gotBuf.String()
 				}
-
+				
 				if tt.want.Template != nil {
-					var wantBuf strings.Builder
-					if err := tt.want.Template.Execute(&wantBuf, struct{}{}); err != nil {
+					if err := tt.want.Template.Execute(&wantBuf, mockData); err != nil {
 						t.Errorf("Failed to execute want template: %v", err)
 						return
 					}
-					wantText = wantBuf.String()
 				}
+				
+				gotText := gotBuf.String()
+				wantText := wantBuf.String()
 
 				if !cmp.Equal(gotText, wantText) {
 					t.Errorf("Template strings differ:\n%s", cmp.Diff(wantText, gotText))
