@@ -534,7 +534,6 @@ func TestEndpointUsecase_ResponseCreator(t *testing.T) {
 					Path  map[string]string
 					Query map[string]string
 				}
-				
 				mockData := templateData{
 					Path: map[string]string{
 						"id": "123",
@@ -546,21 +545,18 @@ func TestEndpointUsecase_ResponseCreator(t *testing.T) {
 
 				// 両方のテンプレートを同じモックデータで実行して結果を比較
 				var gotBuf, wantBuf strings.Builder
-				
 				if got.Template != nil {
 					if err := got.Template.Execute(&gotBuf, mockData); err != nil {
 						t.Errorf("Failed to execute got template: %v", err)
 						return
 					}
 				}
-				
 				if tt.want.Template != nil {
 					if err := tt.want.Template.Execute(&wantBuf, mockData); err != nil {
 						t.Errorf("Failed to execute want template: %v", err)
 						return
 					}
 				}
-				
 				gotText := gotBuf.String()
 				wantText := wantBuf.String()
 
