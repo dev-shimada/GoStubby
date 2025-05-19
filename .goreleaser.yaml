@@ -48,6 +48,7 @@ changelog:
       - "^fmt"
       - "^actions:"
       - "^refactor:"
+      - "^Merge"
 
 release:
   footer: >-
