@@ -6,6 +6,7 @@ ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /workspace
+COPY internal /workspace/internal
 COPY main.go /workspace
 COPY go.mod /workspace
 COPY go.sum /workspace
