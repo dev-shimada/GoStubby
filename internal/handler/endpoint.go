@@ -90,6 +90,9 @@ func (eh endpointHandler) Handle(w http.ResponseWriter, r *http.Request) {
 // If the query string is malformed, it returns an error.
 func rawQueryValues(r http.Request) (url.Values, error) {
 	ret := url.Values{}
+	if r.URL.RawQuery == "" {
+		return ret, nil
+	}
 	for v := range strings.SplitSeq(r.URL.RawQuery, "&") {
 		kv := strings.Split(v, "=")
 		if len(kv) != 2 {
