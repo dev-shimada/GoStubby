@@ -13,11 +13,11 @@ import (
 
 type endpointHandler struct {
 	configPath string
-	eu         usecase.EndpointUsecase
+	eu         endpointUsecase
 }
 
-func NewEndpointHandler(configPath string, eu usecase.EndpointUsecase) *endpointHandler {
-	return &endpointHandler{
+func NewEndpointHandler(configPath string, eu usecase.EndpointUsecase) endpointHandler {
+	return endpointHandler{
 		configPath: configPath,
 		eu:         eu,
 	}
@@ -29,7 +29,6 @@ type endpointUsecase interface {
 }
 
 func (eh endpointHandler) Handle(w http.ResponseWriter, r *http.Request) {
-	var ne endpointUsecase = eh.eu
 	configPath := eh.configPath
 	rqv, err := rawQueryValues(*r)
 	if err != nil {
@@ -56,7 +55,7 @@ func (eh endpointHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		},
 		ConfigPath: configPath,
 	}
-	em, err := ne.EndpointMatcher(EndpointMatcherArgs)
+	em, err := eh.eu.EndpointMatcher(EndpointMatcherArgs)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to match endpoint: %v", err))
 		http.NotFound(w, r)
@@ -72,7 +71,7 @@ func (eh endpointHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		Endpoint:     em.Endpoint,
 		ResponseBody: em.ResponseBody,
 	}
-	rc, err := ne.ResponseCreator(ResponseCreatorArgs)
+	rc, err := eh.eu.ResponseCreator(ResponseCreatorArgs)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to create response: %v", err))
 		http.NotFound(w, r)

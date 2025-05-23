@@ -16,8 +16,8 @@ type EndpointUsecase struct {
 	cr repository.ConfigRepository
 }
 
-func NewEndpointUsecase(cr repository.ConfigRepository) *EndpointUsecase {
-	return &EndpointUsecase{
+func NewEndpointUsecase(cr repository.ConfigRepository) EndpointUsecase {
+	return EndpointUsecase{
 		cr: cr,
 	}
 }
