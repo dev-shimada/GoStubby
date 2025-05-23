@@ -59,7 +59,7 @@ func main() {
 	// Dependency injection
 	cr := config.NewConfigRepository()
 	eu := usecase.NewEndpointUsecase(cr)
-	eh := handler.NewEndpointHandler(configPath, *eu)
+	eh := handler.NewEndpointHandler(configPath, eu)
 
 	mux.HandleFunc("/", eh.Handle)
 

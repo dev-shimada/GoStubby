@@ -13,8 +13,8 @@ import (
 
 type ConfigRepository struct{}
 
-func NewConfigRepository() *ConfigRepository {
-	return &ConfigRepository{}
+func NewConfigRepository() ConfigRepository {
+	return ConfigRepository{}
 }
 
 func (c ConfigRepository) Load(path string) ([]model.Endpoint, error) {
