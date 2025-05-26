@@ -1,13 +1,135 @@
 package handler_test
 
 import (
+	"errors"
+	"html/template"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"testing"
 
+	"github.com/dev-shimada/gostubby/internal/domain/model"
 	"github.com/dev-shimada/gostubby/internal/handler"
+	"github.com/dev-shimada/gostubby/internal/usecase"
 )
+
+type mockEndpointUsecase struct {
+	endpointMatcherFunc func(usecase.EndpointMatcherArgs) (usecase.EndpointMatcherResult, error)
+	responseCreatorFunc func(usecase.ResponseCreatorArgs) (usecase.ResponseCreatorResult, error)
+}
+
+func (m *mockEndpointUsecase) EndpointMatcher(args usecase.EndpointMatcherArgs) (usecase.EndpointMatcherResult, error) {
+	return m.endpointMatcherFunc(args)
+}
+
+func (m *mockEndpointUsecase) ResponseCreator(args usecase.ResponseCreatorArgs) (usecase.ResponseCreatorResult, error) {
+	return m.responseCreatorFunc(args)
+}
+
+func TestHandle(t *testing.T) {
+	tests := []struct {
+		name           string
+		configPath     string
+		request        *http.Request
+		matcherResult  usecase.EndpointMatcherResult
+		matcherErr     error
+		creatorResult  usecase.ResponseCreatorResult
+		creatorErr     error
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:       "Successful request",
+			configPath: "test/config.json",
+			request:    httptest.NewRequest(http.MethodGet, "/test?param=value", nil),
+			matcherResult: usecase.EndpointMatcherResult{
+				Endpoint: model.Endpoint{
+					Name: "test-endpoint",
+				},
+				ResponseStatus: http.StatusOK,
+				ResponseBody:   "template content",
+				Data: struct {
+					Path  map[string]string
+					Query map[string]string
+				}{
+					Path:  map[string]string{"id": "123"},
+					Query: map[string]string{"param": "value"},
+				},
+			},
+			matcherErr: nil,
+			creatorResult: usecase.ResponseCreatorResult{
+				Template: template.Must(template.New("test").Parse("Hello {{.Path.id}}")),
+			},
+			creatorErr:     nil,
+			expectedStatus: http.StatusOK,
+			expectedBody:   "Hello 123",
+		},
+		{
+			name:           "EndpointMatcher error",
+			configPath:     "test/config.json",
+			request:        httptest.NewRequest(http.MethodGet, "/test", nil),
+			matcherErr:     &url.Error{Op: "parse", URL: "invalid", Err: url.InvalidHostError("invalid")},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:       "ResponseCreator error",
+			configPath: "test/config.json",
+			request:    httptest.NewRequest(http.MethodGet, "/test", nil),
+			matcherResult: usecase.EndpointMatcherResult{
+				Endpoint: model.Endpoint{
+					Name: "test-endpoint",
+				},
+				ResponseStatus: http.StatusNotFound,
+				ResponseBody:   "template content",
+				Data: struct {
+					Path  map[string]string
+					Query map[string]string
+				}{
+					Path:  map[string]string{},
+					Query: map[string]string{},
+				},
+			},
+			matcherErr:     nil,
+			creatorResult:  usecase.ResponseCreatorResult{},
+			creatorErr:     errors.New("template parsing error"),
+			expectedStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUsecase := &mockEndpointUsecase{
+				endpointMatcherFunc: func(args usecase.EndpointMatcherArgs) (usecase.EndpointMatcherResult, error) {
+					if tt.matcherErr != nil {
+						return usecase.EndpointMatcherResult{}, tt.matcherErr
+					}
+					return tt.matcherResult, nil
+				},
+				responseCreatorFunc: func(args usecase.ResponseCreatorArgs) (usecase.ResponseCreatorResult, error) {
+					if tt.creatorErr != nil {
+						return usecase.ResponseCreatorResult{}, tt.creatorErr
+					}
+					return tt.creatorResult, nil
+				},
+			}
+
+			handler := handler.NewEndpointHandler(tt.configPath, mockUsecase)
+			w := httptest.NewRecorder()
+			handler.Handle(w, tt.request)
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("Expected status code %d, got %d", tt.expectedStatus, w.Code)
+			}
+
+			if tt.expectedBody != "" {
+				if body := w.Body.String(); body != tt.expectedBody {
+					t.Errorf("Expected body %q, got %q", tt.expectedBody, body)
+				}
+			}
+		})
+	}
+}
 
 func Test_rawQueryValues(t *testing.T) {
 	type args struct {

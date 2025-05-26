@@ -16,7 +16,7 @@ type endpointHandler struct {
 	eu         endpointUsecase
 }
 
-func NewEndpointHandler(configPath string, eu usecase.EndpointUsecase) endpointHandler {
+func NewEndpointHandler(configPath string, eu endpointUsecase) endpointHandler {
 	return endpointHandler{
 		configPath: configPath,
 		eu:         eu,
