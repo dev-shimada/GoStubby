@@ -28,6 +28,7 @@ type EndpointMatcherArgs struct {
 		UrlPath        string
 		Body           io.ReadCloser
 		Method         string
+		Headers        map[string][]string
 		RawQueryValues url.Values
 		QueryValues    url.Values
 	}
@@ -86,7 +87,8 @@ func (eu EndpointUsecase) EndpointMatcher(arg EndpointMatcherArgs) (EndpointMatc
 			return EndpointMatcherResult{}, err
 		}
 		isMatchBody := e.BodyMatcher(string(body))
-		if arg.Request.Method == e.Request.Method && isMatchPath && isMatchQuery && isMatchBody {
+		isMatchHeaders := e.HeaderMatcher(arg.Request.Headers)
+		if arg.Request.Method == e.Request.Method && isMatchPath && isMatchQuery && isMatchBody && isMatchHeaders {
 			slog.Info(fmt.Sprintf("Matched endpoint: %s", e.Name))
 			return EndpointMatcherResult{
 				Endpoint:       e,
