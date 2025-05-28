@@ -43,6 +43,7 @@ func (eh endpointHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			UrlPath        string
 			Body           io.ReadCloser
 			Method         string
+			Headers        map[string][]string
 			RawQueryValues url.Values
 			QueryValues    url.Values
 		}{
@@ -50,6 +51,7 @@ func (eh endpointHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			UrlPath:        r.URL.Path,
 			Body:           r.Body,
 			Method:         r.Method,
+			Headers:        r.Header,
 			RawQueryValues: rqv,
 			QueryValues:    r.URL.Query(),
 		},

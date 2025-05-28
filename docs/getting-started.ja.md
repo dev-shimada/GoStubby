@@ -91,6 +91,26 @@ curl -s -X GET "http://localhost:8080/example/file?param1=123%3F" | iconv -f sji
 }
 ```
 
+```bash
+curl -s -X GET -H "Accept: application/json" -d '{"key": "value"}' "http://localhost:8080/example/123/aZ0/@@@/abc/acd?param1=false&param2=aZ0&param3=000&param4=abc&param5=acd" | jq
+```
+期待されるレスポンス：
+```json
+{
+  "message": "This is a stub response",
+  "param1": "false",
+  "param2": "aZ0",
+  "param3": "000",
+  "param4": "abc",
+  "param5": "acd",
+  "path1": "123",
+  "path2": "aZ0",
+  "path3": "@@@",
+  "path4": "abc",
+  "path5": "acd"
+}
+```
+
 ## 基本的な設定例
 
 ### 1. 静的レスポンス

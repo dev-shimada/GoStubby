@@ -25,6 +25,7 @@ type Request struct {
 	URLPathTemplate string `json:"urlPathTemplate"` // パスパラメータを含むテンプレートでの完全一致
 
 	Method          string             `json:"method"`
+	Headers         map[string]Matcher `json:"headers"` // HTTP header matchers
 	QueryParameters map[string]Matcher `json:"queryParameters"`
 	PathParameters  map[string]Matcher `json:"pathParameters"`
 	Body            Matcher            `json:"body"`
@@ -154,6 +155,29 @@ func (endpoint Endpoint) BodyMatcher(body string) bool {
 		return false
 	case endpoint.Request.Body.DoesNotContain != nil && strings.Contains(body, endpoint.Request.Body.DoesNotContain.(string)):
 		return false
+	}
+	return true
+}
+
+func (endpoint Endpoint) HeaderMatcher(headers map[string][]string) bool {
+	for k, v := range endpoint.Request.Headers {
+		headerVal := ""
+		if values, exists := headers[k]; exists && len(values) > 0 {
+			headerVal = values[0]
+		}
+
+		switch {
+		case v.EqualTo != nil && headerVal != fmt.Sprint(v.EqualTo):
+			return false
+		case v.Matches != nil && !regexp.MustCompile(v.Matches.(string)).MatchString(headerVal):
+			return false
+		case v.DoesNotMatch != nil && regexp.MustCompile(v.DoesNotMatch.(string)).MatchString(headerVal):
+			return false
+		case v.Contains != nil && !strings.Contains(headerVal, v.Contains.(string)):
+			return false
+		case v.DoesNotContain != nil && strings.Contains(headerVal, v.DoesNotContain.(string)):
+			return false
+		}
 	}
 	return true
 }

@@ -69,6 +69,7 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 						UrlPath        string
 						Body           io.ReadCloser
 						Method         string
+						Headers        map[string][]string
 						RawQueryValues url.Values
 						QueryValues    url.Values
 					}{
@@ -142,6 +143,7 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 						UrlPath        string
 						Body           io.ReadCloser
 						Method         string
+						Headers        map[string][]string
 						RawQueryValues url.Values
 						QueryValues    url.Values
 					}{
@@ -218,6 +220,7 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 						UrlPath        string
 						Body           io.ReadCloser
 						Method         string
+						Headers        map[string][]string
 						RawQueryValues url.Values
 						QueryValues    url.Values
 					}{
@@ -302,6 +305,7 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 						UrlPath        string
 						Body           io.ReadCloser
 						Method         string
+						Headers        map[string][]string
 						RawQueryValues url.Values
 						QueryValues    url.Values
 					}{
@@ -372,6 +376,7 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 						UrlPath        string
 						Body           io.ReadCloser
 						Method         string
+						Headers        map[string][]string
 						RawQueryValues url.Values
 						QueryValues    url.Values
 					}{
@@ -401,6 +406,7 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 						UrlPath        string
 						Body           io.ReadCloser
 						Method         string
+						Headers        map[string][]string
 						RawQueryValues url.Values
 						QueryValues    url.Values
 					}{
