@@ -6,10 +6,11 @@ ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /workspace
-COPY internal /workspace/internal
-COPY main.go /workspace
 COPY go.mod /workspace
 COPY go.sum /workspace
+RUN go mod download
+COPY internal /workspace/internal
+COPY main.go /workspace
 COPY LICENSE /workspace
 
 RUN  <<EOF
