@@ -140,6 +140,65 @@ func Test_PathMatcher(t *testing.T) {
 				"param2": "abcde",
 			},
 		},
+		{
+			name: "url path template equalTo does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						URLPathTemplate: "/path/{param1}/{param2}",
+						PathParameters: map[string]model.Matcher{
+							"param1": {
+								EqualTo: "12345",
+							},
+							"param2": {
+								EqualTo: "abcde",
+							},
+						},
+					},
+				},
+				gotPath: "/path/12345/abcdef",
+			},
+			want:    false,
+			wantMap: nil,
+		},
+		{
+			name: "url path template matches match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						URLPathTemplate: "/path/{param1}",
+						PathParameters: map[string]model.Matcher{
+							"param1": {
+								Matches: "^[0-9]{5}$",
+							},
+						},
+					},
+				},
+				gotPath: "/path/12345",
+			},
+			want: true,
+			wantMap: map[string]string{
+				"param1": "12345",
+			},
+		},
+		{
+			name: "url path template matches does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						URLPathTemplate: "/path/{param1}",
+						PathParameters: map[string]model.Matcher{
+							"param1": {
+								Matches: "^[0-9]{5}$",
+							},
+						},
+					},
+				},
+				gotPath: "/path/123456",
+			},
+			want:    false,
+			wantMap: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
