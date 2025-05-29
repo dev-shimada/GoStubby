@@ -4,7 +4,7 @@
     "Description": "Example with various path and query parameters",
     "request": {
       "urlPathTemplate": "/example/{path1}/{path2}/{path3}/{path4}/{path5}",
-      "Headers": {
+      "headers": {
         "Accept": {
           "equalTo": "application/json"
         }
