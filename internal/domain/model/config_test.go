@@ -199,6 +199,120 @@ func Test_PathMatcher(t *testing.T) {
 			want:    false,
 			wantMap: nil,
 		},
+		{
+			name: "url path template doesNotMatch match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						URLPathTemplate: "/path/{param1}",
+						PathParameters: map[string]model.Matcher{
+							"param1": {
+								DoesNotMatch: "^[0-9]{5}$",
+							},
+						},
+					},
+				},
+				gotPath: "/path/123456",
+			},
+			want: true,
+			wantMap: map[string]string{
+				"param1": "123456",
+			},
+		},
+		{
+			name: "url path template doesNotMatch does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						URLPathTemplate: "/path/{param1}",
+						PathParameters: map[string]model.Matcher{
+							"param1": {
+								DoesNotMatch: "^[0-9]{5}$",
+							},
+						},
+					},
+				},
+				gotPath: "/path/12345",
+			},
+			want:    false,
+			wantMap: nil,
+		},
+		{
+			name: "url path template contains match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						URLPathTemplate: "/path/{param1}",
+						PathParameters: map[string]model.Matcher{
+							"param1": {
+								Contains: "abc",
+							},
+						},
+					},
+				},
+				gotPath: "/path/xabcyz",
+			},
+			want: true,
+			wantMap: map[string]string{
+				"param1": "xabcyz",
+			},
+		},
+		{
+			name: "url path template contains does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						URLPathTemplate: "/path/{param1}",
+						PathParameters: map[string]model.Matcher{
+							"param1": {
+								Contains: "abc",
+							},
+						},
+					},
+				},
+				gotPath: "/path/xyz",
+			},
+			want:    false,
+			wantMap: nil,
+		},
+		{
+			name: "url path template doesNotContain match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						URLPathTemplate: "/path/{param1}",
+						PathParameters: map[string]model.Matcher{
+							"param1": {
+								DoesNotContain: "abc",
+							},
+						},
+					},
+				},
+				gotPath: "/path/xyz",
+			},
+			want: true,
+			wantMap: map[string]string{
+				"param1": "xyz",
+			},
+		},
+		{
+			name: "url path template doesNotContain does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						URLPathTemplate: "/path/{param1}",
+						PathParameters: map[string]model.Matcher{
+							"param1": {
+								DoesNotContain: "abc",
+							},
+						},
+					},
+				},
+				gotPath: "/path/xabcyz",
+			},
+			want:    false,
+			wantMap: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -252,6 +366,236 @@ func Test_QueryMatcher(t *testing.T) {
 			wantMap: map[string]string{
 				"param1": "encoded",
 			},
+		},
+		{
+			name: "query equalTo match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						QueryParameters: map[string]model.Matcher{
+							"param1": {
+								EqualTo: "12345",
+							},
+						},
+					},
+				},
+				gotRawQuery: url.Values{
+					"param1": []string{"12345"},
+				},
+				gotQuery: url.Values{
+					"param1": []string{"12345"},
+				},
+			},
+			want: true,
+			wantMap: map[string]string{
+				"param1": "12345",
+			},
+		},
+		{
+			name: "query equalTo does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						QueryParameters: map[string]model.Matcher{
+							"param1": {
+								EqualTo: "12345",
+							},
+						},
+					},
+				},
+				gotRawQuery: url.Values{
+					"param1": []string{"123456"},
+				},
+				gotQuery: url.Values{
+					"param1": []string{"123456"},
+				},
+			},
+			want:    false,
+			wantMap: nil,
+		},
+		{
+			name: "query matches match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						QueryParameters: map[string]model.Matcher{
+							"param1": {
+								Matches: "^[0-9]{5}$",
+							},
+						},
+					},
+				},
+				gotRawQuery: url.Values{
+					"param1": []string{"12345"},
+				},
+				gotQuery: url.Values{
+					"param1": []string{"12345"},
+				},
+			},
+			want: true,
+			wantMap: map[string]string{
+				"param1": "12345",
+			},
+		},
+		{
+			name: "query matches does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						QueryParameters: map[string]model.Matcher{
+							"param1": {
+								Matches: "^[0-9]{5}$",
+							},
+						},
+					},
+				},
+				gotRawQuery: url.Values{
+					"param1": []string{"123456"},
+				},
+				gotQuery: url.Values{
+					"param1": []string{"123456"},
+				},
+			},
+			want:    false,
+			wantMap: nil,
+		},
+		{
+			name: "query doesNotMatch match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						QueryParameters: map[string]model.Matcher{
+							"param1": {
+								DoesNotMatch: "^[0-9]{5}$",
+							},
+						},
+					},
+				},
+				gotRawQuery: url.Values{
+					"param1": []string{"123456"},
+				},
+				gotQuery: url.Values{
+					"param1": []string{"123456"},
+				},
+			},
+			want: true,
+			wantMap: map[string]string{
+				"param1": "123456",
+			},
+		},
+		{
+			name: "query doesNotMatch does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						QueryParameters: map[string]model.Matcher{
+							"param1": {
+								DoesNotMatch: "^[0-9]{5}$",
+							},
+						},
+					},
+				},
+				gotRawQuery: url.Values{
+					"param1": []string{"12345"},
+				},
+				gotQuery: url.Values{
+					"param1": []string{"12345"},
+				},
+			},
+			want:    false,
+			wantMap: nil,
+		},
+		{
+			name: "query contains match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						QueryParameters: map[string]model.Matcher{
+							"param1": {
+								Contains: "abc",
+							},
+						},
+					},
+				},
+				gotRawQuery: url.Values{
+					"param1": []string{"xabcyz"},
+				},
+				gotQuery: url.Values{
+					"param1": []string{"xabcyz"},
+				},
+			},
+			want: true,
+			wantMap: map[string]string{
+				"param1": "xabcyz",
+			},
+		},
+		{
+			name: "query contains does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						QueryParameters: map[string]model.Matcher{
+							"param1": {
+								Contains: "abc",
+							},
+						},
+					},
+				},
+				gotRawQuery: url.Values{
+					"param1": []string{"xyz"},
+				},
+				gotQuery: url.Values{
+					"param1": []string{"xyz"},
+				},
+			},
+			want:    false,
+			wantMap: nil,
+		},
+		{
+			name: "query doesNotContain match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						QueryParameters: map[string]model.Matcher{
+							"param1": {
+								DoesNotContain: "abc",
+							},
+						},
+					},
+				},
+				gotRawQuery: url.Values{
+					"param1": []string{"xyz"},
+				},
+				gotQuery: url.Values{
+					"param1": []string{"xyz"},
+				},
+			},
+			want: true,
+			wantMap: map[string]string{
+				"param1": "xyz",
+			},
+		},
+		{
+			name: "query doesNotContain does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						QueryParameters: map[string]model.Matcher{
+							"param1": {
+								DoesNotContain: "abc",
+							},
+						},
+					},
+				},
+				gotRawQuery: url.Values{
+					"param1": []string{"xabcyz"},
+				},
+				gotQuery: url.Values{
+					"param1": []string{"xabcyz"},
+				},
+			},
+			want:    false,
+			wantMap: nil,
 		},
 	}
 	for _, tt := range tests {
@@ -340,6 +684,60 @@ func Test_HeaderMatcher(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "header matches pattern does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Headers: map[string]model.Matcher{
+							"Authorization": {
+								Matches: "^Bearer [A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]*$",
+							},
+						},
+					},
+				},
+				headers: map[string][]string{
+					"Authorization": {"Basic dXNlcjpwYXNzd29yZA=="},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "header doesNotMatch match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Headers: map[string]model.Matcher{
+							"Authorization": {
+								DoesNotMatch: "^Bearer [A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]*$",
+							},
+						},
+					},
+				},
+				headers: map[string][]string{
+					"Authorization": {"Basic dXNlcjpwYXNzd29yZA=="},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "header doesNotMatch does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Headers: map[string]model.Matcher{
+							"Authorization": {
+								DoesNotMatch: "^Bearer [A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]*$",
+							},
+						},
+					},
+				},
+				headers: map[string][]string{
+					"Authorization": {"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"},
+				},
+			},
+			want: false,
+		},
+		{
 			name: "header contains match",
 			args: args{
 				endpoint: model.Endpoint{
@@ -356,6 +754,60 @@ func Test_HeaderMatcher(t *testing.T) {
 				},
 			},
 			want: true,
+		},
+		{
+			name: "header contains does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Headers: map[string]model.Matcher{
+							"Accept": {
+								Contains: "application/json",
+							},
+						},
+					},
+				},
+				headers: map[string][]string{
+					"Accept": {"text/html, text/plain, */*"},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "header doesNotContain match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Headers: map[string]model.Matcher{
+							"Accept": {
+								DoesNotContain: "application/json",
+							},
+						},
+					},
+				},
+				headers: map[string][]string{
+					"Accept": {"text/html, text/plain, */*"},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "header doesNotContain does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Headers: map[string]model.Matcher{
+							"Accept": {
+								DoesNotContain: "application/json",
+							},
+						},
+					},
+				},
+				headers: map[string][]string{
+					"Accept": {"text/html, application/json, */*"},
+				},
+			},
+			want: false,
 		},
 		{
 			name: "multiple headers match",
@@ -434,6 +886,132 @@ func Test_BodyMatcher(t *testing.T) {
 				body: "test",
 			},
 			want: true,
+		},
+		{
+			name: "body equalTo does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Body: model.Matcher{
+							EqualTo: "test",
+						},
+					},
+				},
+				body: "different",
+			},
+			want: false,
+		},
+		{
+			name: "body matches match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Body: model.Matcher{
+							Matches: "^test[0-9]+$",
+						},
+					},
+				},
+				body: "test123",
+			},
+			want: true,
+		},
+		{
+			name: "body matches does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Body: model.Matcher{
+							Matches: "^test[0-9]+$",
+						},
+					},
+				},
+				body: "testxyz",
+			},
+			want: false,
+		},
+		{
+			name: "body doesNotMatch match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Body: model.Matcher{
+							DoesNotMatch: "^test[0-9]+$",
+						},
+					},
+				},
+				body: "testxyz",
+			},
+			want: true,
+		},
+		{
+			name: "body doesNotMatch does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Body: model.Matcher{
+							DoesNotMatch: "^test[0-9]+$",
+						},
+					},
+				},
+				body: "test123",
+			},
+			want: false,
+		},
+		{
+			name: "body contains match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Body: model.Matcher{
+							Contains: "test",
+						},
+					},
+				},
+				body: "this is a test message",
+			},
+			want: true,
+		},
+		{
+			name: "body contains does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Body: model.Matcher{
+							Contains: "test",
+						},
+					},
+				},
+				body: "this is a sample",
+			},
+			want: false,
+		},
+		{
+			name: "body doesNotContain match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Body: model.Matcher{
+							DoesNotContain: "test",
+						},
+					},
+				},
+				body: "this is a sample",
+			},
+			want: true,
+		},
+		{
+			name: "body doesNotContain does not match",
+			args: args{
+				endpoint: model.Endpoint{
+					Request: model.Request{
+						Body: model.Matcher{
+							DoesNotContain: "test",
+						},
+					},
+				},
+				body: "this is a test message",
+			},
+			want: false,
 		},
 	}
 	for _, tt := range tests {
