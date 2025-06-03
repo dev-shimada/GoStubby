@@ -392,7 +392,7 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "リポジトリエラー",
+			name: "リポジトリ作成失敗",
 			fields: fields{
 				cr: &mockConfigRepository{
 					endpoints: nil,
@@ -412,6 +412,150 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 					}{
 						UrlRawPath: "/users/123",
 						UrlPath:    "/users/123",
+						Body:       io.NopCloser(strings.NewReader("")),
+						Method:     "GET",
+					},
+					ConfigPath: "test-config.json",
+				},
+			},
+			want:    usecase.EndpointMatcherResult{},
+			wantErr: true,
+		},
+		{
+			name: "ファイル読み込み成功",
+			fields: fields{
+				cr: &mockConfigRepository{
+					endpoints: []model.Endpoint{
+						{
+							Name: "File Body Test Endpoint",
+							Request: model.Request{
+								Method:          "GET",
+								URLPathTemplate: "/api/data",
+							},
+							Response: model.Response{
+								Status:       200,
+								BodyFileName: "../../testdata/test_response.json",
+							},
+						},
+					},
+				},
+			},
+			args: args{
+				arg: usecase.EndpointMatcherArgs{
+					Request: struct {
+						UrlRawPath     string
+						UrlPath        string
+						Body           io.ReadCloser
+						Method         string
+						Headers        map[string][]string
+						RawQueryValues url.Values
+						QueryValues    url.Values
+					}{
+						UrlRawPath: "/api/data",
+						UrlPath:    "/api/data",
+						Body:       io.NopCloser(strings.NewReader("")),
+						Method:     "GET",
+					},
+					ConfigPath: "test-config.json",
+				},
+			},
+			want: usecase.EndpointMatcherResult{
+				Endpoint: model.Endpoint{
+					Name: "File Body Test Endpoint",
+					Request: model.Request{
+						Method:          "GET",
+						URLPathTemplate: "/api/data",
+					},
+					Response: model.Response{
+						Status:       200,
+						BodyFileName: "../../testdata/test_response.json",
+					},
+				},
+				ResponseBody:   "{\"id\": \"test123\", \"message\": \"This is from a test file\"}\n",
+				ResponseStatus: 200,
+				Data: struct {
+					Path  map[string]string
+					Query map[string]string
+				}{
+					Path:  map[string]string{},
+					Query: map[string]string{},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "ファイルオープンエラー",
+			fields: fields{
+				cr: &mockConfigRepository{
+					endpoints: []model.Endpoint{
+						{
+							Name: "File Open Error Test",
+							Request: model.Request{
+								Method:          "GET",
+								URLPathTemplate: "/api/error",
+							},
+							Response: model.Response{
+								Status:       200,
+								BodyFileName: "testdata/nonexistent_file.json",
+							},
+						},
+					},
+				},
+			},
+			args: args{
+				arg: usecase.EndpointMatcherArgs{
+					Request: struct {
+						UrlRawPath     string
+						UrlPath        string
+						Body           io.ReadCloser
+						Method         string
+						Headers        map[string][]string
+						RawQueryValues url.Values
+						QueryValues    url.Values
+					}{
+						UrlRawPath: "/api/error",
+						UrlPath:    "/api/error",
+						Body:       io.NopCloser(strings.NewReader("")),
+						Method:     "GET",
+					},
+					ConfigPath: "test-config.json",
+				},
+			},
+			want:    usecase.EndpointMatcherResult{},
+			wantErr: true,
+		},
+		{
+			name: "BodyFileNameもBodyも空",
+			fields: fields{
+				cr: &mockConfigRepository{
+					endpoints: []model.Endpoint{
+						{
+							Name: "Empty Response Test",
+							Request: model.Request{
+								Method:          "GET",
+								URLPathTemplate: "/api/empty",
+							},
+							Response: model.Response{
+								Status: 200,
+								// BodyFileNameもBodyも設定されていない
+							},
+						},
+					},
+				},
+			},
+			args: args{
+				arg: usecase.EndpointMatcherArgs{
+					Request: struct {
+						UrlRawPath     string
+						UrlPath        string
+						Body           io.ReadCloser
+						Method         string
+						Headers        map[string][]string
+						RawQueryValues url.Values
+						QueryValues    url.Values
+					}{
+						UrlRawPath: "/api/empty",
+						UrlPath:    "/api/empty",
 						Body:       io.NopCloser(strings.NewReader("")),
 						Method:     "GET",
 					},
