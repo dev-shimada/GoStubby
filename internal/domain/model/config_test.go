@@ -615,9 +615,10 @@ func Test_HeaderMatcher(t *testing.T) {
 		headers  map[string][]string
 	}
 	tests := []struct {
-		name string
-		args args
-		want bool
+		name    string
+		args    args
+		want    bool
+		wantMap map[string][]string
 	}{
 		{
 			name: "empty headers",
@@ -627,7 +628,8 @@ func Test_HeaderMatcher(t *testing.T) {
 				},
 				headers: map[string][]string{},
 			},
-			want: true,
+			want:    true,
+			wantMap: map[string][]string{},
 		},
 		{
 			name: "header equalTo match",
@@ -646,6 +648,9 @@ func Test_HeaderMatcher(t *testing.T) {
 				},
 			},
 			want: true,
+			wantMap: map[string][]string{
+				"Content-Type": {"application/json"},
+			},
 		},
 		{
 			name: "header equalTo does not match",
@@ -663,7 +668,8 @@ func Test_HeaderMatcher(t *testing.T) {
 					"Content-Type": {"text/plain"},
 				},
 			},
-			want: false,
+			want:    false,
+			wantMap: nil,
 		},
 		{
 			name: "header matches pattern match",
@@ -682,6 +688,11 @@ func Test_HeaderMatcher(t *testing.T) {
 				},
 			},
 			want: true,
+			wantMap: map[string][]string{
+				"Authorization": {
+					"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
+				},
+			},
 		},
 		{
 			name: "header matches pattern does not match",
@@ -699,7 +710,8 @@ func Test_HeaderMatcher(t *testing.T) {
 					"Authorization": {"Basic dXNlcjpwYXNzd29yZA=="},
 				},
 			},
-			want: false,
+			want:    false,
+			wantMap: nil,
 		},
 		{
 			name: "header doesNotMatch match",
@@ -718,6 +730,9 @@ func Test_HeaderMatcher(t *testing.T) {
 				},
 			},
 			want: true,
+			wantMap: map[string][]string{
+				"Authorization": {"Basic dXNlcjpwYXNzd29yZA=="},
+			},
 		},
 		{
 			name: "header doesNotMatch does not match",
@@ -735,7 +750,8 @@ func Test_HeaderMatcher(t *testing.T) {
 					"Authorization": {"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"},
 				},
 			},
-			want: false,
+			want:    false,
+			wantMap: nil,
 		},
 		{
 			name: "header contains match",
@@ -754,6 +770,9 @@ func Test_HeaderMatcher(t *testing.T) {
 				},
 			},
 			want: true,
+			wantMap: map[string][]string{
+				"Accept": {"text/html, application/json, */*"},
+			},
 		},
 		{
 			name: "header contains does not match",
@@ -771,7 +790,8 @@ func Test_HeaderMatcher(t *testing.T) {
 					"Accept": {"text/html, text/plain, */*"},
 				},
 			},
-			want: false,
+			want:    false,
+			wantMap: nil,
 		},
 		{
 			name: "header doesNotContain match",
@@ -790,6 +810,9 @@ func Test_HeaderMatcher(t *testing.T) {
 				},
 			},
 			want: true,
+			wantMap: map[string][]string{
+				"Accept": {"text/html, text/plain, */*"},
+			},
 		},
 		{
 			name: "header doesNotContain does not match",
@@ -807,7 +830,8 @@ func Test_HeaderMatcher(t *testing.T) {
 					"Accept": {"text/html, application/json, */*"},
 				},
 			},
-			want: false,
+			want:    false,
+			wantMap: nil,
 		},
 		{
 			name: "multiple headers match",
@@ -830,6 +854,10 @@ func Test_HeaderMatcher(t *testing.T) {
 				},
 			},
 			want: true,
+			wantMap: map[string][]string{
+				"Content-Type":  {"application/json"},
+				"Authorization": {"Bearer token123"},
+			},
 		},
 		{
 			name: "multiple headers one mismatch",
@@ -851,13 +879,16 @@ func Test_HeaderMatcher(t *testing.T) {
 					"Authorization": {"Bearer token123"},
 				},
 			},
-			want: false,
+			want:    false,
+			wantMap: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.args.endpoint.HeaderMatcher(tt.args.headers); got != tt.want {
+			if got, gotMap := tt.args.endpoint.HeaderMatcher(tt.args.headers); got != tt.want {
 				t.Errorf("headerMatcher() = %v, want %v", got, tt.want)
+			} else if !cmp.Equal(gotMap, tt.wantMap) {
+				t.Errorf("diff: %v", cmp.Diff(gotMap, tt.wantMap))
 			}
 		})
 	}

@@ -39,8 +39,9 @@ type EndpointMatcherResult struct {
 	ResponseBody   string
 	ResponseStatus int
 	Data           struct {
-		Path  map[string]string
-		Query map[string]string
+		Path    map[string]string
+		Query   map[string]string
+		Headers map[string][]string
 	}
 }
 
@@ -87,7 +88,7 @@ func (eu EndpointUsecase) EndpointMatcher(arg EndpointMatcherArgs) (EndpointMatc
 			return EndpointMatcherResult{}, err
 		}
 		isMatchBody := e.BodyMatcher(string(body))
-		isMatchHeaders := e.HeaderMatcher(arg.Request.Headers)
+		isMatchHeaders, headersMap := e.HeaderMatcher(arg.Request.Headers)
 		if arg.Request.Method == e.Request.Method && isMatchPath && isMatchQuery && isMatchBody && isMatchHeaders {
 			slog.Info(fmt.Sprintf("Matched endpoint: %s", e.Name))
 			return EndpointMatcherResult{
@@ -95,11 +96,13 @@ func (eu EndpointUsecase) EndpointMatcher(arg EndpointMatcherArgs) (EndpointMatc
 				ResponseBody:   responseBody,
 				ResponseStatus: e.Response.Status,
 				Data: struct {
-					Path  map[string]string
-					Query map[string]string
+					Path    map[string]string
+					Query   map[string]string
+					Headers map[string][]string
 				}{
-					Path:  pathMap,
-					Query: queryMap,
+					Path:    pathMap,
+					Query:   queryMap,
+					Headers: headersMap,
 				},
 			}, nil
 		}

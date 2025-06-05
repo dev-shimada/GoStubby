@@ -50,8 +50,9 @@ func TestHandle(t *testing.T) {
 				ResponseStatus: http.StatusOK,
 				ResponseBody:   "template content",
 				Data: struct {
-					Path  map[string]string
-					Query map[string]string
+					Path    map[string]string
+					Query   map[string]string
+					Headers map[string][]string
 				}{
 					Path:  map[string]string{"id": "123"},
 					Query: map[string]string{"param": "value"},
@@ -83,8 +84,9 @@ func TestHandle(t *testing.T) {
 				ResponseStatus: http.StatusNotFound,
 				ResponseBody:   "template content",
 				Data: struct {
-					Path  map[string]string
-					Query map[string]string
+					Path    map[string]string
+					Query   map[string]string
+					Headers map[string][]string
 				}{
 					Path:  map[string]string{},
 					Query: map[string]string{},
