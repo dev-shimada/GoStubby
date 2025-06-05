@@ -101,8 +101,9 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 				ResponseBody:   `{"id": "123", "name": "Test User"}`,
 				ResponseStatus: 200,
 				Data: struct {
-					Path  map[string]string
-					Query map[string]string
+					Path    map[string]string
+					Query   map[string]string
+					Headers map[string][]string
 				}{
 					Path: map[string]string{
 						"id": "123",
@@ -175,8 +176,9 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 				ResponseBody:   `{"id": "456", "name": "Test Product"}`,
 				ResponseStatus: 200,
 				Data: struct {
-					Path  map[string]string
-					Query map[string]string
+					Path    map[string]string
+					Query   map[string]string
+					Headers map[string][]string
 				}{
 					Path: map[string]string{
 						"id": "456",
@@ -263,8 +265,9 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 				ResponseBody:   `{"results": [{"name": "Test Result"}]}`,
 				ResponseStatus: 200,
 				Data: struct {
-					Path  map[string]string
-					Query map[string]string
+					Path    map[string]string
+					Query   map[string]string
+					Headers map[string][]string
 				}{
 					Path: map[string]string{},
 					Query: map[string]string{
@@ -336,8 +339,9 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 				ResponseBody:   `{"id": "789", "status": "created"}`,
 				ResponseStatus: 201,
 				Data: struct {
-					Path  map[string]string
-					Query map[string]string
+					Path    map[string]string
+					Query   map[string]string
+					Headers map[string][]string
 				}{
 					Path:  map[string]string{},
 					Query: map[string]string{},
@@ -474,8 +478,9 @@ func TestEndpointUsecase_EndpointMatcher(t *testing.T) {
 				ResponseBody:   "{\"id\": \"test123\", \"message\": \"This is from a test file\"}\n",
 				ResponseStatus: 200,
 				Data: struct {
-					Path  map[string]string
-					Query map[string]string
+					Path    map[string]string
+					Query   map[string]string
+					Headers map[string][]string
 				}{
 					Path:  map[string]string{},
 					Query: map[string]string{},

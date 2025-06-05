@@ -159,7 +159,7 @@ func (endpoint Endpoint) BodyMatcher(body string) bool {
 	return true
 }
 
-func (endpoint Endpoint) HeaderMatcher(headers map[string][]string) bool {
+func (endpoint Endpoint) HeaderMatcher(headers map[string][]string) (bool, map[string][]string) {
 	for k, v := range endpoint.Request.Headers {
 		headerVal := ""
 		if values, exists := headers[k]; exists && len(values) > 0 {
@@ -168,16 +168,16 @@ func (endpoint Endpoint) HeaderMatcher(headers map[string][]string) bool {
 
 		switch {
 		case v.EqualTo != nil && headerVal != fmt.Sprint(v.EqualTo):
-			return false
+			return false, nil
 		case v.Matches != nil && !regexp.MustCompile(v.Matches.(string)).MatchString(headerVal):
-			return false
+			return false, nil
 		case v.DoesNotMatch != nil && regexp.MustCompile(v.DoesNotMatch.(string)).MatchString(headerVal):
-			return false
+			return false, nil
 		case v.Contains != nil && !strings.Contains(headerVal, v.Contains.(string)):
-			return false
+			return false, nil
 		case v.DoesNotContain != nil && strings.Contains(headerVal, v.DoesNotContain.(string)):
-			return false
+			return false, nil
 		}
 	}
-	return true
+	return true, headers
 }
