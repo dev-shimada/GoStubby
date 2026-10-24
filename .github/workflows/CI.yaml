@@ -22,14 +22,13 @@ jobs:
           path: .
 
   lint:
-    needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: Download repo
-        uses: actions/download-artifact@v4
-        with:
-          name: repo
-      
+      # Not the repo artifact: upload-artifact skips dotfiles, and the lint
+      # config (.golangci.yml, .custom-gcl.yml) lives in dotfiles.
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
       - name: Set up Go
         id: setup-go
         uses: actions/setup-go@v5
