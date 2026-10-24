@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.24.3-bookworm as vscode
+FROM --platform=$BUILDPLATFORM golang:1.27.3-bookworm as vscode
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
