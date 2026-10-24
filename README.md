@@ -1,9 +1,18 @@
 # GoStubby
-[![Go Report Card](https://goreportcard.com/badge/github.com/dev-shimada/GoStubby)](https://goreportcard.com/report/github.com/dev-shimada/GoStubby)
-[![Coverage Status](https://coveralls.io/repos/github/dev-shimada/GoStubby/badge.svg?branch=main)](https://coveralls.io/github/dev-shimada/GoStubby?branch=main)
-[![CI](https://github.com/dev-shimada/GoStubby/actions/workflows/CI.yaml/badge.svg)](https://github.com/dev-shimada/GoStubby/actions/workflows/CI.yaml)
-[![build](https://github.com/dev-shimada/GoStubby/actions/workflows/build-docker-image.yaml/badge.svg)](https://github.com/dev-shimada/GoStubby/actions/workflows/build-docker-image.yaml)
-[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/dev-shimada/GoStubby/blob/master/LICENSE)
+
+<p align="center">
+  <a href="https://github.com/dev-shimada/GoStubby/actions/workflows/CI.yaml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/dev-shimada/GoStubby/CI.yaml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI"></a>
+  <a href="https://codecov.io/gh/dev-shimada/GoStubby"><img alt="Coverage" src="https://codecov.io/gh/dev-shimada/GoStubby/branch/main/graph/badge.svg?style=flat-square"></a>
+  <a href="https://github.com/dev-shimada/GoStubby/blob/main/go.mod"><img alt="Go Version" src="https://img.shields.io/github/go-mod/go-version/dev-shimada/GoStubby?style=flat-square&logo=go&logoColor=white"></a>
+  <a href="https://github.com/dev-shimada/GoStubby/blob/main/LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/dev-shimada/GoStubby?style=flat-square"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/dev-shimada/GoStubby/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/dev-shimada/GoStubby?style=flat-square&logo=github&logoColor=white"></a>
+  <a href="https://goreportcard.com/report/github.com/dev-shimada/GoStubby"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/dev-shimada/GoStubby?style=flat-square"></a>
+  <a href="https://github.com/dev-shimada/GoStubby/actions/workflows/build-docker-image.yaml"><img alt="Docker" src="https://img.shields.io/github/actions/workflow/status/dev-shimada/GoStubby/build-docker-image.yaml?style=flat-square&logo=docker&logoColor=white&label=Docker"></a>
+</p>
+
 
 A flexible and powerful mock server implementation in Go that allows you to define mock endpoints with advanced request matching capabilities and templated responses.
 
