@@ -44,7 +44,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.0
+          version: v2.15.0
 
   vet:
     needs: setup
@@ -95,6 +95,9 @@ jobs:
   test:
     needs: setup
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # codecov-action use_oidc
     steps:
       - name: Download repo
         uses: actions/download-artifact@v4
@@ -113,7 +116,14 @@ jobs:
         run: go mod download
       
       - name: Test
-        run: go test -v ./...
+        run: go test -v -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: coverage.out
+          use_oidc: true
+          fail_ci_if_error: false
   
   image:
     timeout-minutes: 10
